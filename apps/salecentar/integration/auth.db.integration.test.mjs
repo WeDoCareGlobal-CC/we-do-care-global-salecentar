@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 
 const db=process.env.SALECENTAR_TEST_DATABASE_URL;
 if(process.env.SALECENTAR_REQUIRE_DB_TESTS==='true'&&!db) throw Error('PostgreSQL tests required but SALECENTAR_TEST_DATABASE_URL missing');
-test('PostgreSQL: central login, module introspection, role enforcement, and revocation',{skip:!db},async()=>{
+test('PostgreSQL: central login, module introspection, role enforcement, and revocation',async()=>{
  const {default:pg}=await import('pg');
  const menuSecret='m'.repeat(40),zeroSecret='z'.repeat(40),admin='a'.repeat(40);
  const port=32001;

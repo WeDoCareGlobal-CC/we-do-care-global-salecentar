@@ -4,7 +4,7 @@ import {spawn} from 'node:child_process';
 import {createHmac,randomUUID} from 'node:crypto';
 const db=process.env.SALECENTAR_TEST_DATABASE_URL;
 if(process.env.SALECENTAR_REQUIRE_DB_TESTS==='true'&&!db) throw Error('PostgreSQL tests required but SALECENTAR_TEST_DATABASE_URL missing');
-test('PostgreSQL: signed intake, idempotency, verified payment and full summary', {skip:!db}, async()=>{
+test('PostgreSQL: signed intake, idempotency, verified payment and full summary', async()=>{
  const pg=(await import('pg')).default;
  const menuSecret='m'.repeat(40),zeroSecret='z'.repeat(40),admin='a'.repeat(40);
  const port=31999;

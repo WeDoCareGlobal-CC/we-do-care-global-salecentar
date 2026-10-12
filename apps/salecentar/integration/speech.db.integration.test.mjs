@@ -4,7 +4,7 @@ import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 const db=process.env.SALECENTAR_TEST_DATABASE_URL;
 if(process.env.SALECENTAR_REQUIRE_DB_TESTS==='true'&&!db)throw Error('PostgreSQL tests required');
-test('PostgreSQL: module grant, speech quota, usage and portal visibility',{skip:!db},async()=>{
+test('PostgreSQL: module grant, speech quota, usage and portal visibility',async()=>{
  const {default:pg}=await import('pg');
  const admin='a'.repeat(40),speech='s'.repeat(40),port=32012;
  const child=spawn(process.execPath,['server.mjs'],{cwd:new URL('.',import.meta.url),env:{...process.env,SALECENTAR_DATABASE_URL:db,SALECENTAR_MENU_SNAP_SECRET:'m'.repeat(40),SALECENTAR_ZERO_BUDGET_SECRET:'z'.repeat(40),SALECENTAR_SPEECH_GENERATOR_SECRET:speech,SALECENTAR_ADMIN_TOKEN:admin,SALECENTAR_ALLOW_LEGACY_ADMIN:'true',SALECENTAR_PORT:String(port),SPEECH_DAILY_LIMIT:'2'},stdio:'pipe'});
