@@ -8,6 +8,7 @@ const {Pool}=pg;
 const keys={'menu-snap':process.env.SALECENTAR_MENU_SNAP_SECRET,'zerobudget-ai':process.env.SALECENTAR_ZERO_BUDGET_SECRET};
 const museAuthSecret=process.env.SALECENTAR_MUSE_FLOW_SECRET;
 const speechAuthSecret=process.env.SALECENTAR_SPEECH_GENERATOR_SECRET;
+const hermesAuthSecret=process.env.SALECENTAR_HERMES_SECRET;
 const adminToken=process.env.SALECENTAR_ADMIN_TOKEN;
 const databaseUrl=process.env.SALECENTAR_DATABASE_URL;
 if(Object.values(keys).some(v=>!v||v.length<32)||keys['menu-snap']===keys['zerobudget-ai']||(process.env.SALECENTAR_ALLOW_LEGACY_ADMIN==='true'&&(!adminToken||adminToken.length<32))||!databaseUrl)
@@ -201,11 +202,24 @@ const server=http.createServer(async(req,res)=>{
     [hashToken(token),q.rows[0].id]);
    return respond(res,200,{token,role:q.rows[0].role,expires_in:28800});
   }
-  // Internal session introspection: only the two registered module services may call this.
+  // Internal entitlement check: module services may call this to verify user module grants.
+  if(req.method==='POST'&&url.pathname==='/internal/auth/entitlement'){
+   const moduleName=req.headers['x-salecentar-module'];
+   const moduleSecret=moduleName==='muse-flow'?museAuthSecret:moduleName==='speech-generator'?speechAuthSecret:moduleName==='hermes-x402'?hermesAuthSecret:keys[moduleName];
+   if(!moduleSecret||!eq(req.headers['x-salecentar-service-key'],moduleSecret))
+    return respond(res,401,{error:'Unauthorized service'});
+   const data=JSON.parse((await read(req)).toString('utf8'));
+   const userId=typeof data?.user_id==='string'&&/^[0-9a-f-]{36}$/i.test(data.user_id)?data.user_id:null;
+   if(!userId)return respond(res,400,{error:'Invalid user_id'});
+   const q=await pool.query(`SELECT enabled FROM sc_module_entitlements WHERE user_id=$1 AND module_id=$2`,[userId,moduleName]);
+   return respond(res,200,{enabled:q.rows[0]?.enabled===true});
+  }
+
+  // Internal session introspection: only the registered module services may call this.
   // No session token is logged or returned to the module.
   if(req.method==='POST'&&url.pathname==='/internal/auth/introspect'){
    const moduleName=req.headers['x-salecentar-module'];
-   const moduleSecret=moduleName==='muse-flow'?museAuthSecret:moduleName==='speech-generator'?speechAuthSecret:keys[moduleName];
+   const moduleSecret=moduleName==='muse-flow'?museAuthSecret:moduleName==='speech-generator'?speechAuthSecret:moduleName==='hermes-x402'?hermesAuthSecret:keys[moduleName];
    if(!moduleSecret||!eq(req.headers['x-salecentar-service-key'],moduleSecret))
     return respond(res,401,{error:'Unauthorized service'});
    const data=JSON.parse((await read(req)).toString('utf8'));
@@ -310,7 +324,7 @@ const server=http.createServer(async(req,res)=>{
    if(!await authorized(req,req.method==='POST'?'admin':'viewer'))return respond(res,401,{error:'Unauthorized'});
    if(req.method==='POST'&&url.pathname==='/admin/users'){
     const input=JSON.parse((await read(req)).toString('utf8'));
-    if(typeof input?.email!=='string'||!/^\\S+@\\S+\\.\\S+$/.test(input.email)||
+    if(typeof input?.email!=='string'||!/^\S+@\S+\.\S+$/.test(input.email)||
        typeof input?.password!=='string'||input.password.length<14||!['admin','viewer'].includes(input.role))
      return respond(res,400,{error:'Invalid user'});
     await pool.query('INSERT INTO sc_users(id,email,password_hash,role) VALUES($1,$2,$3,$4)',

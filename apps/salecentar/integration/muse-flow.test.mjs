@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const root=new URL('../../../',import.meta.url);
 const file=p=>readFileSync(new URL(p,root),'utf8');
-test('Muse-Flow API is gated by central authentication',()=>{
+test('Muse-Flow API is gated by central authentication and entitlement',()=>{
  const s=file('apps/muse-flow/server.ts');
- assert.match(s,/app\.use\('\/api',requireCentralSession,apiRouter\)/);
+ assert.match(s,/app\.use\('\/api',requireCentralSession,requireEntitlement,apiRouter\)/);
  assert.match(s,/app\.post\('\/api\/auth\/login'/);
+ assert.match(s,/app\.post\('\/api\/integrations\/speech',requireCentralSession,requireEntitlement,speechBridge\)/);
 });
 test('Muse-Flow Vite development does not bypass central auth',()=>{
  const s=file('apps/muse-flow/vite.config.ts');

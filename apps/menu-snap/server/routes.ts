@@ -1,4 +1,4 @@
-import {centralIdentity,centralLogin} from '../centralAuth';
+import {centralIdentity,centralLogin,checkCentralEntitlement} from '../centralAuth';
 import type { Express, Request, Response, NextFunction } from 'express';
 import { randomBytes, randomUUID, createHmac } from 'node:crypto';
 import { promises as fs } from 'node:fs';
@@ -34,6 +34,19 @@ const auth=async(req:Request,res:Response,next:NextFunction)=>{
 };
 function requireActor(req:Request,res:Response,next:NextFunction){if(!req.actor){res.status(401).json({error:'Login required'});return;}next();}
 function admin(req:Request,res:Response,next:NextFunction){if(req.actor?.role!=='admin'){res.status(403).json({error:'Admin only'});return;}next();}
+
+// Entitlement check middleware: verifies user has grant for 'menu-snap' module
+export async function requireEntitlement(req:Request,res:Response,next:NextFunction){
+ try {
+  if(!process.env.SALECENTAR_AUTH_URL){next();return;}
+  const user=req.actor;
+  if(!user){res.status(401).json({error:'Login required'});return;}
+  const hasEntitlement=await checkCentralEntitlement(user.id,'menu-snap');
+  if(!hasEntitlement){res.status(403).json({error:'Module access not granted'});return;}
+  next();
+ }catch(e){res.status(503).json({error:'Entitlement check unavailable'});}
+}
+
 export async function aiQuota(req:Request,res:Response,next:NextFunction){
  try {
   const user=req.actor;
@@ -83,6 +96,7 @@ export function installRoutes(app:Express){
   res.setHeader('Cache-Control','no-store');res.json({token,user:{email:q.rows[0].email,role:q.rows[0].role}});
  }));
  app.use('/api',auth,requireActor);
+app.use(['/api/menus','/api/orders'],requireEntitlement);
  app.post('/api/auth/logout',safe(async(req,res)=>{
   const token=req.headers.authorization?.slice(7)||'';
   if(process.env.SALECENTAR_AUTH_URL){
