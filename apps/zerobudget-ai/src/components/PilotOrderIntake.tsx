@@ -1,5 +1,5 @@
 import {getCentralToken} from '../centralSession';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 export function PilotOrderIntake({ language }: { language: 'bs' | 'en' }) {
   const [email, setEmail] = useState('');

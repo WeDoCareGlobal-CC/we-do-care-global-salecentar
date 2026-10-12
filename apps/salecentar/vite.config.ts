@@ -10,6 +10,7 @@ export default defineConfig({
       process.env.APPDEPLOY_VITE_SOURCEMAP === 'hidden' ? 'hidden' : false,
     rollupOptions: {
       maxParallelFileOps: 128,
+      external: ['@appdeploy/client', '@appdeploy/sdk'],
     },
   },
 });

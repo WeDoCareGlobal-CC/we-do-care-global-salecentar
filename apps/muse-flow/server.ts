@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { apiRouter } from "./server/api.ts";
 import {centralLogin,centralLogout,requireCentralSession} from "./server/centralAuth.ts";
+import {speechBridge} from "./server/speechBridge.ts";
 
 dotenv.config();
 
