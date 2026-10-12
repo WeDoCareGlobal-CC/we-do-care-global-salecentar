@@ -1,0 +1,16 @@
+{
+  "methods": [
+    "google"
+  ],
+  "headline": "Private We Do Care SaleCentar",
+  "subtitle": "Sign in with the owner Google account",
+  "style": {
+    "mode": "dark",
+    "accentColor": "#e59b78",
+    "backgroundColor": "#061715",
+    "panelColor": "#0a211e",
+    "textColor": "#f7f1e7",
+    "fontFamily": "Manrope, system-ui, sans-serif",
+    "borderRadius": 18
+  }
+}

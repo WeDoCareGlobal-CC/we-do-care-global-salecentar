@@ -1,0 +1,11 @@
+# Phase B / Step 2 — owner-only AI protection
+- Three Gemini endpoints now require `Authorization: Bearer <MENU_SNAP_OWNER_TOKEN>`.
+- Owner token is prompted in the browser and kept in JavaScript memory only.
+- Token must be 32+ characters and must be configured server-side. Never commit it.
+- AI_DAILY_LIMIT defaults to 30 requests per UTC day, counted in process memory.
+- Restart or multiple instances reset/split usage; this is a temporary pilot safeguard, NOT billing-grade quotas.
+- Existing endpoints return 401 without a token and 429 when the quota is exceeded.
+- If the token is wrong, refresh the page to clear the in-memory token.
+- Browser prompt is a temporary UX. Use HTTPS; do not use this for multiple customers.
+- Still required: user accounts, durable quota ledger, database, asset storage, payment verification, integration tests.
+- No npm install, build, or end-to-end test was executed.

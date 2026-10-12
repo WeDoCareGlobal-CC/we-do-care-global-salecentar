@@ -1,0 +1,6 @@
+{
+  "name": "Virtual Food Photographer",
+  "description": "Transform restaurant text menus into studio-grade, high-definition food photography with customizable style toggles, lighting presets, and resolution options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

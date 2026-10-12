@@ -1,0 +1,24 @@
+# Runtime dependencies for hermes-x402-profit.
+#
+# Deliberately minimal: Keccak-256 is vendored in hermes_x402/keccak.py because
+# pycryptodome, pysha3 and eth-hash all need a C toolchain that is unavailable on
+# aarch64 Termux/Android. ecdsa (pure Python) supplies secp256k1 arithmetic.
+#
+# gunicorn is NOT optional on Azure App Service: the Linux Python stack starts
+# the app with `gunicorn --bind=0.0.0.0 --timeout 600 application:app`. Oryx's
+# build installs only what is listed here, so omitting gunicorn leaves the
+# container with no server binary and it fails to start.
+# gunicorn must use UvicornWorker because the app is ASGI, not WSGI; the default
+# sync worker cannot serve a FastAPI app.
+
+ecdsa>=0.19
+httpx>=0.27
+fastapi>=0.110
+uvicorn>=0.29
+gunicorn>=21.2
+uvicorn[standard]>=0.29
+
+# Required only for real settlement: CDP authenticates with an Ed25519 JWT
+# minted from the API secret. Wheels ship prebuilt for aarch64, so no compiler
+# is needed on Termux.
+cryptography>=42.0

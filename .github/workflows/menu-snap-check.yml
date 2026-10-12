@@ -1,0 +1,24 @@
+name: Menu Snap source checks
+on:
+  pull_request:
+    paths:
+      - 'apps/menu-snap/**'
+      - '.github/workflows/menu-snap-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/menu-snap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

@@ -1,0 +1,6 @@
+{
+  "name": "Magic Writing Studio",
+  "description": "Smart writing studio with mood annotations, tone-matched rewriter, night-time dark theme, AI research assistant, style guide auditor, story arc visualizer, and manuscript export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@wdcg/salecentar-integration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test.mjs control.test.mjs central-sso.test.mjs muse-flow.test.mjs db.integration.test.mjs auth.db.integration.test.mjs release.test.mjs hermes-policy.test.mjs speech.db.integration.test.mjs",
+    "dashboard": "node dashboard.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

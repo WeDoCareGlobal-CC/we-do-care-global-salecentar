@@ -1,0 +1,65 @@
+[
+  {
+    "name": "Owner Google sign-in opens private command center",
+    "sanity": true,
+    "viewport": "desktop",
+    "covers": [
+      "Google sign-in",
+      "owner-only authorization",
+      "protected command center"
+    ],
+    "description": "Verifies the private login and owner boundary.",
+    "steps": [
+      "Open the app while signed out",
+      "Click Sign in with Google",
+      "Complete Google sign-in with the owner account"
+    ],
+    "expected": "The owner command center is visible and the owner account is shown as verified."
+  },
+  {
+    "name": "Protected automation workflow",
+    "viewport": "desktop",
+    "covers": [
+      "protected webhooks",
+      "automation"
+    ],
+    "description": "Verifies an authenticated owner can create a webhook.",
+    "steps": [
+      "Open Automation",
+      "Click New webhook"
+    ],
+    "expected": "price.changed appears as active."
+  },
+  {
+    "name": "Owner wallet demo controls",
+    "viewport": "mobile",
+    "covers": [
+      "Wallet page",
+      "PayPal button",
+      "Stripe button",
+      "non-transactional withdrawal UI"
+    ],
+    "description": "Verifies the owner-only wallet settings UI without initiating a transfer.",
+    "steps": [
+      "Open Wallet",
+      "Tap Connect PayPal",
+      "Tap Connect Stripe",
+      "Tap Withdrawal options"
+    ],
+    "expected": "Each control shows a configuration/demo notice and no transfer occurs."
+  },
+  {
+    "name": "Portable catalog export",
+    "viewport": "desktop",
+    "covers": [
+      "protected JSON export",
+      "migration"
+    ],
+    "description": "Verifies the owner can export the catalog.",
+    "steps": [
+      "Open Migration",
+      "Click Export JSON"
+    ],
+    "expected": "A JSON export download is initiated."
+  }
+]

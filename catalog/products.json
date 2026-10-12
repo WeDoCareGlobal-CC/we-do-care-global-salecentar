@@ -1,0 +1,60 @@
+{
+  "schema": "wdcg-product-catalog/v1",
+  "products": [
+    {
+      "id": "menu-snap",
+      "name": "Menu Snap",
+      "status": "pilot-not-production",
+      "path": "apps/menu-snap",
+      "offerCode": "MENU_SNAP_STARTER",
+      "priceCurrency": "EUR",
+      "pricingSource": "menu-snap server configuration",
+      "integration": "manual-json-import",
+      "notes": "No verified live billing or SaleCentar synchronization"
+    },
+    {
+      "id": "zerobudget-ai",
+      "name": "ZeroBudget AI",
+      "status": "source-integrated-pilot",
+      "path": "apps/zerobudget-ai",
+      "offerCode": "ZERO_BUDGET_AI_DIGITAL_PACK",
+      "priceCurrency": "EUR",
+      "pricingSource": "not-configured",
+      "integration": "signed-pending-order-import",
+      "notes": "HMAC-protected pending-order import to central PostgreSQL ledger; no checkout, verified payments, or app-side automatic order submission"
+    },
+    {
+      "id": "muse-flow",
+      "name": "Muse-Flow",
+      "status": "source-integrated-pilot",
+      "path": "apps/muse-flow",
+      "offerCode": null,
+      "priceCurrency": null,
+      "pricingSource": "not-configured",
+      "integration": "central-staff-auth-only",
+      "notes": "Creative writing AI app; no SaleCentar orders, checkout or paid offers configured; Gemini key required server-side"
+    },
+    {
+      "id": "hermes-x402",
+      "name": "Hermes x402 Profit",
+      "status": "source-integrated-security-pilot",
+      "path": "apps/hermes-x402",
+      "offerCode": null,
+      "priceCurrency": "USDC",
+      "pricingSource": "Hermes API worker resource definitions",
+      "integration": "standalone-x402-service-no-central-revenue-sync",
+      "notes": "Admin financial endpoints protected; simulated, confirmed and unverified separated; no live settlement validated"
+    },
+    {
+      "id": "speech-generator",
+      "name": "Speech Generator",
+      "status": "functional-provider-dependent-pilot",
+      "path": "apps/speech-generator",
+      "offerCode": null,
+      "priceCurrency": null,
+      "pricingSource": "not-configured",
+      "integration": "central-staff-auth-and-external-tts-provider",
+      "notes": "TTS endpoint uses configurable OpenAI-compatible audio provider; provider key and live synthesis not verified; pilot quota in memory, no billing."
+    }
+  ]
+}

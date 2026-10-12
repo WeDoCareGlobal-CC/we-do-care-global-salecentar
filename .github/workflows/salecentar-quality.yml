@@ -1,0 +1,116 @@
+name: We Do Care Global SaleCentar checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: salecentar_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d salecentar_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SALECENTAR_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:5432/salecentar_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/salecentar/integration
+      - name: Require PostgreSQL connection for integration tests
+        run: |
+          test -n "$SALECENTAR_TEST_DATABASE_URL"
+          node -e "if (!process.env.SALECENTAR_TEST_DATABASE_URL) process.exit(1)"
+      - name: Run all integration tests (including real PostgreSQL)
+        run: npm test
+        working-directory: apps/salecentar/integration
+        env:
+          SALECENTAR_REQUIRE_DB_TESTS: 'true'
+      - name: Verify configuration templates and safety
+        run: |
+          node scripts/verify-config.mjs
+          node --test scripts/verify-config.test.mjs
+          node scripts/release-audit.mjs
+          node --test scripts/release-audit.test.mjs
+  module-builds:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [menu-snap, zerobudget-ai, muse-flow]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/${{ matrix.module }}
+      - run: npm run lint
+        working-directory: apps/${{ matrix.module }}
+      - name: Run module tests when provided
+        working-directory: apps/${{ matrix.module }}
+        run: |
+          if node -e "const p=require('./package.json');process.exit(p.scripts?.test?0:1)"; then
+            npm test
+          else
+            echo "No module test script configured"
+          fi
+      - run: npm run build
+        working-directory: apps/${{ matrix.module }}
+      - name: Verify frontend and production server artifacts
+        working-directory: apps/${{ matrix.module }}
+        run: |
+          test -s dist/index.html
+          test -s dist/server.mjs
+          node --check dist/server.mjs
+  salecentar-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/salecentar
+      - run: npm run build
+        working-directory: apps/salecentar
+  hermes-security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Hermes dependencies
+        run: pip install -r requirements.txt
+        working-directory: apps/hermes-x402
+      - name: Verify Python syntax
+        run: python -m compileall -q hermes_x402 tests
+        working-directory: apps/hermes-x402
+      - name: Run Hermes tests
+        run: python -m unittest discover -s tests -v
+        working-directory: apps/hermes-x402
+
+  speech-generator-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
+        working-directory: apps/speech-generator
+      - run: npm run lint && npm run build
+        working-directory: apps/speech-generator

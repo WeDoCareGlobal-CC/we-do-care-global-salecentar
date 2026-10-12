@@ -1,0 +1,6 @@
+{
+  "name": "Zero-Capital AI Profit Engine",
+  "description": "Step-by-step $0 capital AI revenue blueprint with copy-paste prompts, visual workflow diagrams, pricing calculators, landing page templates, outreach scripts, and language options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

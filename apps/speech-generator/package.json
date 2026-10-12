@@ -1,0 +1,15 @@
+{
+  "name": "wdcg-speech-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test.mjs",
+    "lint": "node --check server.mjs && node --check speech.mjs",
+    "build": "node --check server.mjs && node --check speech.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

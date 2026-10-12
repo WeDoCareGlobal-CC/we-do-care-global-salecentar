@@ -1,0 +1,11 @@
+# Azure App Service (Linux) Python configuration.
+#
+# App Service reads this to pick the runtime and the startup command. Without
+# it the site defaults to Node and fails to start this project.
+
+PYTHON_VERSION=3.12
+
+# Startup command. Azure injects PORT; binding 0.0.0.0 is required or the site
+# never answers. The server refuses to bind publicly without X402_PRIVATE_KEY,
+# so set that app setting before this will start in production.
+SCM_DO_BUILD_DURING_DEPLOYMENT=true
