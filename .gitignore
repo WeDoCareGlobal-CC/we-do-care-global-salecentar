@@ -7,3 +7,6 @@
 **/private-images/
 **/coverage/
 *.log
+
+# PostgreSQL installer artifact — never commit
+*.zip
