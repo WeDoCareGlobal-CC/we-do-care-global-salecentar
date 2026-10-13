@@ -3,11 +3,15 @@
 # Usage: BASE=http://127.0.0.1:32500 bash scripts/cross-module-entitlement-test.sh
 # Requires the central server started with SALECENTAR_ALLOW_LEGACY_ADMIN=true
 # and module secrets as configured below.
-#
-# SAFETY: this script creates a throwaway viewer user in the target database.
-# By default it only runs against localhost. Pointing it at a remote/production
-# host requires the explicit ALLOW_REMOTE=1 override, and the created user is
-# always deleted on exit (including on failure, via trap).
+# Safety contract:
+#   - Refuses non-localhost BASE unless ALLOW_REMOTE=1 is set explicitly.
+#   - Refuses any target whose /health does not report mode=test
+#     (SALECENTAR_TEST_ENV=1 on the server), so a production instance is
+#     rejected even when reached over localhost.
+#   - Verifies HTTP status codes for user creation and deletion.
+#   - Confirms the throwaway user is actually removed at the end.
+#   - Generates a unique random password per run; no fixed test credential
+#     exists anywhere in this repository.
 set -u
 BASE="${BASE:-http://127.0.0.1:32500}"
 
@@ -23,6 +27,18 @@ case "$BASE" in
     echo "WARNING: running against non-localhost $BASE with ALLOW_REMOTE=1" >&2
     ;;
 esac
+
+# --- guard 2: target must identify itself as a test instance ---
+HEALTH=$(curl -s -m 10 "$BASE/health" 2>/dev/null || echo '{}')
+MODE=$(echo "$HEALTH" | python -c "import json,sys
+try: print(json.load(sys.stdin).get('mode',''))
+except Exception: print('')" 2>/dev/null || echo '')
+if [ "$MODE" != "test" ]; then
+  echo "REFUSING: $BASE/health reports mode='${MODE:-unknown}', not 'test'."
+  echo "This script writes test data; start the server with SALECENTAR_TEST_ENV=1"
+  echo "against an isolated test database before running it."
+  exit 2
+fi
 PASS=0; FAIL=0
 check(){
   if [ "$2" = "$3" ]; then echo "PASS | $1 (got $3)"; PASS=$((PASS+1));
@@ -34,26 +50,30 @@ FSEC="${FSEC:-$(printf 'f%.0s' {1..40})}"; SSEC="${SSEC:-$(printf 's%.0s' {1..40
 HSEC="${HSEC:-$(printf 'h%.0s' {1..40})}"; ASEC="${ASEC:-$(printf 'a%.0s' {1..40})}"
 
 # Provision a fresh viewer through the admin API, then log in.
-VEMAIL="xmod-$(date +%s)@example.org"
-VPASS="CrossModule-Test-2026!"
+VEMAIL="xmod-$(date +%s)-$$@example.org"
+VPASS="Xmod-$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)-Test!"
 VID=""
 VTOK=""
 cleanup(){
   if [ -n "$VTOK" ]; then
-    curl -s -o /dev/null -X POST "$BASE/auth/logout" -H "authorization: Bearer $VTOK" 2>/dev/null || true
+    curl -s -o /dev/null -m 10 -X POST "$BASE/auth/logout" -H "authorization: Bearer $VTOK" 2>/dev/null || true
   fi
   if [ -n "$VID" ]; then
     echo "cleanup: removing test user $VEMAIL"
-    curl -s -o /dev/null -X DELETE "$BASE/admin/users/$VID" -H "authorization: Bearer $ASEC" 2>/dev/null || true
+    curl -s -o /dev/null -m 10 -X DELETE "$BASE/admin/users/$VID" -H "authorization: Bearer $ASEC" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
 
-curl -s -o /dev/null -X POST "$BASE/admin/users" -H "$H" -H "authorization: Bearer $ASEC" \
-  -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\",\"role\":\"viewer\"}" || { echo "FATAL: user create failed"; exit 1; }
-VJSON=$(curl -s -X POST "$BASE/auth/login" -H "$H" -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\"}")
-VTOK=$(echo "$VJSON" | python -c "import json,sys;print(json.load(sys.stdin)['token'])")
-VID=$(curl -s "$BASE/portal/api/me" -H "authorization: Bearer $VTOK" | python -c "import json,sys;print(json.load(sys.stdin)['user']['id'])")
+# --- create user with explicit status verification ---
+CREATE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 -X POST "$BASE/admin/users" -H "$H" -H "authorization: Bearer $ASEC" \
+  -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\",\"role\":\"viewer\"}")
+check "0. admin creates test viewer -> 201" "201" "$CREATE_CODE"
+[ "$CREATE_CODE" = "201" ] || { echo "FATAL: user create failed (HTTP $CREATE_CODE)"; exit 1; }
+VJSON=$(curl -s -m 15 -X POST "$BASE/auth/login" -H "$H" -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\"}")
+VTOK=$(echo "$VJSON" | python -c "import json,sys;print(json.load(sys.stdin).get('token',''))")
+[ -n "$VTOK" ] || { echo "FATAL: login failed"; exit 1; }
+VID=$(curl -s -m 15 "$BASE/portal/api/me" -H "authorization: Bearer $VTOK" | python -c "import json,sys;print(json.load(sys.stdin).get('user',{}).get('id',''))")
 echo "viewer_id=$VID"
 [ -z "$VID" ] && { echo "FATAL: no viewer id"; exit 1; }
 
@@ -85,6 +105,13 @@ code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/internal/auth/intro
 check "11. valid token -> introspect 200" "200" "$code"
 code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/admin/overview" -H "authorization: Bearer $ASEC")
 check "12. admin overview regression -> 200" "200" "$code"
+
+# --- explicit teardown with status verification and removal confirmation ---
+DEL_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 -X DELETE "$BASE/admin/users/$VID" -H "authorization: Bearer $ASEC")
+check "13. admin deletes test viewer -> 200" "200" "$DEL_CODE"
+# the account must be truly gone: a fresh login with the old credentials must fail
+REL_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 15 -X POST "$BASE/auth/login" -H "$H" -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\"}")
+check "14. deleted user cannot log in again -> 401" "401" "$REL_CODE"
 
 echo ""
 echo "RESULT: PASS=$PASS FAIL=$FAIL"

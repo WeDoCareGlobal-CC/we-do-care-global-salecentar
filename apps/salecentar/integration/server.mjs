@@ -166,7 +166,8 @@ const server=http.createServer(async(req,res)=>{
     WHERE request_id=$1 AND status='reserved' RETURNING request_id`,[data.request_id,data.status]);
    return respond(res,q.rowCount?200:409,q.rowCount?{ok:true}:{error:'Unknown or completed request'});
   }
-  if(req.method==='GET'&&url.pathname==='/health')return respond(res,200,{ok:true});
+  if(req.method==='GET'&&url.pathname==='/health')
+   return respond(res,200,{ok:true,mode:process.env.SALECENTAR_TEST_ENV==='1'?'test':'standard'});
   if(req.method==='POST'&&url.pathname==='/auth/bootstrap'){
    const data=JSON.parse((await read(req)).toString('utf8'));
    const secret=process.env.SALECENTAR_BOOTSTRAP_SECRET;
@@ -326,10 +327,21 @@ const server=http.createServer(async(req,res)=>{
    if(req.method==='DELETE'&&url.pathname.startsWith('/admin/users/')){
     const userId=url.pathname.slice('/admin/users/'.length);
     if(!/^[0-9a-f-]{36}$/i.test(userId))return respond(res,400,{error:'Invalid user id'});
-    await pool.query('DELETE FROM sc_module_entitlements WHERE user_id=$1',[userId]);
-    await pool.query('DELETE FROM sc_sessions WHERE user_id=$1',[userId]);
-    await pool.query('DELETE FROM sc_users WHERE id=$1',[userId]);
-    return respond(res,200,{ok:true});
+    const client=await pool.connect();
+    try{
+     await client.query('BEGIN');
+     const target=await client.query('SELECT id,role FROM sc_users WHERE id=$1 FOR UPDATE',[userId]);
+     if(!target.rowCount){await client.query('ROLLBACK');return respond(res,404,{error:'User not found'});}
+     // Protected accounts: administrators may not be deleted through this
+     // endpoint, which prevents both accidental and self-inflicted lockout.
+     if(target.rows[0].role==='admin'){await client.query('ROLLBACK');return respond(res,403,{error:'Protected account cannot be deleted'});}
+     await client.query('DELETE FROM sc_module_entitlements WHERE user_id=$1',[userId]);
+     await client.query('DELETE FROM sc_sessions WHERE user_id=$1',[userId]);
+     const r=await client.query('DELETE FROM sc_users WHERE id=$1',[userId]);
+     if(!r.rowCount){await client.query('ROLLBACK');return respond(res,404,{error:'User not found'});}
+     await client.query('COMMIT');
+     return respond(res,200,{ok:true});
+    }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e;}finally{client.release();}
    }
    if(req.method==='POST'&&url.pathname==='/admin/users'){
     const input=JSON.parse((await read(req)).toString('utf8'));
