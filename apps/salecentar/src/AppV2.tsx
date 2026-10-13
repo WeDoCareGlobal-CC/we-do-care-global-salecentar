@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
 export default function AppV2() {
@@ -18,7 +18,7 @@ export default function AppV2() {
     if(!user){setModules([]);return;}
     centralApi.entitlements().then(r=>setModules(r.modules)).catch(()=>setMessage('Moduli trenutno nisu dostupni.'));
   },[user]);
-  async function login(e: React.FormEvent) {
+  async function login(e: FormEvent) {
     e.preventDefault();setBusy(true);setMessage('');
     try { const r=await centralApi.login(email,password);setUser(r.user);setPassword(''); }
     catch { setMessage('Prijava nije uspjela. Provjerite podatke.'); }
