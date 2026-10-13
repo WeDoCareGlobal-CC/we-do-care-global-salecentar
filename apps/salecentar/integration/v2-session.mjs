@@ -20,7 +20,7 @@ export function parseCookies(header = '') {
 }
 export function sessionCookies(token, csrf, {secure = true} = {}) {
   if (!secure) throw new Error('Secure cookies are required for v2');
-  const options = 'Path=/; Secure; SameSite=Strict; Max-Age=86400';
+  const options = 'Path=/; Secure; SameSite=Strict; Max-Age=28800';
   return [
     TOKEN_COOKIE+'='+token+'; HttpOnly; '+options,
     CSRF_COOKIE+'='+csrf+'; '+options,
