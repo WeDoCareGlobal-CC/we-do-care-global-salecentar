@@ -14,10 +14,10 @@ export type ModuleId = 'menu-snap' | 'zerobudget-ai' | 'muse-flow' | 'hermes-x40
 export type SessionUser = { id: string; email: string; role: 'admin' | 'viewer' };
 export type SessionResponse = { user: SessionUser | null };
 export type ModuleEntitlement = { module_id: ModuleId; name: string; status: string; enabled: boolean };
-const API_BASE = (import.meta.env.VITE_SALECENTAR_API_BASE || '').replace(/\/$/, '');
+// Same-origin only: the HTTPS reverse proxy forwards /api/v2 to the staging backend.
 export async function centralRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!path.startsWith('/') || path.startsWith('//')) throw new Error('API path must be relative');
-  const response = await fetch(API_BASE + path, {
+  const response = await fetch(path, {
     ...init,
     credentials: 'include',
     headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
