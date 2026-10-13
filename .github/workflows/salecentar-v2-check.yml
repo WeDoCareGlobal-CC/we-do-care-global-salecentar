@@ -1,0 +1,39 @@
+name: SaleCentar V2 isolated checks
+on:
+  pull_request:
+    paths:
+      - 'apps/salecentar/**'
+      - '.github/workflows/salecentar-v2-check.yml'
+  workflow_dispatch:
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: V2 session tests
+        run: node --test apps/salecentar/integration/v2-session.test.mjs
+      - name: Server syntax check
+        run: node --check apps/salecentar/integration/server.mjs
+  standalone-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/salecentar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/salecentar/package-lock.json
+      - run: npm ci
+      - run: npm run build:v2
+      - name: Reject AppDeploy imports from V2 entry
+        run: |
+          if grep -R -n '@appdeploy/' src/AppV2.tsx src/main-v2.tsx src/lib/central-api.ts; then
+            echo 'Unexpected AppDeploy dependency in v2 entry'
+            exit 1
+          fi
