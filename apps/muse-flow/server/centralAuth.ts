@@ -12,6 +12,28 @@ export async function centralLogin(email:string,password:string){
   return await r.json();
  }finally{clearTimeout(timer);}
 }
+export async function checkCentralEntitlement(userId:string,moduleId:string):Promise<boolean>{
+ if(!base||!secret||secret.length<32)return false;
+ const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),4000);
+ try{
+  const r=await fetch(new URL('/internal/auth/entitlement',base),{method:'POST',signal:ctrl.signal,
+   headers:{'content-type':'application/json','x-salecentar-module':moduleId,
+    'x-salecentar-service-key':secret},body:JSON.stringify({user_id:userId})
+  });
+  if(!r.ok)return false;
+  const data=await r.json();
+  return data.enabled===true;
+ }finally{clearTimeout(timer);}
+}
+export async function requireEntitlement(req:Request,res:Response,next:NextFunction){
+ const user=res.locals.centralUser;
+ if(!user)return res.status(401).json({error:'SaleCentar login required'});
+ try{
+  const granted=await checkCentralEntitlement(user.id,'muse-flow');
+  if(!granted)return res.status(403).json({error:'Module access not granted'});
+  next();
+ }catch{return res.status(503).json({error:'Entitlement check unavailable'});}
+}
 export async function requireCentralSession(req:Request,res:Response,next:NextFunction){
  if(!base||!secret||secret.length<32)return res.status(503).json({error:'Central auth not configured'});
  const token=req.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{32,})$/)?.[1];

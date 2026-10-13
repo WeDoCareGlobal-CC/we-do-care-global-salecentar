@@ -88,13 +88,74 @@ class X402Server:
             if path in ("/profit/summary", "/profit/settlements", "/dashboard", "/"):
                 expected = _os.getenv("HERMES_ADMIN_API_KEY", "")
                 supplied = request.headers.get("x-hermes-admin-key", "")
-                if not expected or not _hmac.compare_digest(supplied, expected):
-                    return _JSONResponse(status_code=403, content={"detail": "financial access denied"})
+                if expected and _hmac.compare_digest(supplied, expected):
+                    return await call_next(request)
+                # Optional central-authorization path: a SaleCentar admin session
+                # with the hermes-x402 entitlement may also reach financial routes.
+                # The independent x402 payment protocol is never affected: paid
+                # resource routes keep their 402 challenge flow, and protocol
+                # clients are never required to hold SaleCentar accounts.
+                if await self._central_admin_allowed(request):
+                    return await call_next(request)
+                return _JSONResponse(status_code=403, content={"detail": "financial access denied"})
             return await call_next(request)
 
         self._install_core_routes()
         for resource in self.resources:
             self._install_paid_route(resource)
+
+    # -- central authorization -----------------------------------------
+
+    async def _central_admin_allowed(self, request: Request) -> bool:
+        """Optional central check: a SaleCentar admin session with the
+        hermes-x402 entitlement may access financial routes. Returns False
+        when central auth is not configured or any step fails (default deny)."""
+        import os as _os
+
+        base = _os.getenv("SALECENTAR_AUTH_URL", "")
+        secret = _os.getenv("SALECENTAR_HERMES_SECRET", "")
+        if not base or not secret or len(secret) < 32:
+            return False
+        header = request.headers.get("authorization", "")
+        token = header[7:] if header.startswith("Bearer ") else ""
+        if not token:
+            return False
+        import json as _json
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                introspect = await client.post(
+                    f"{base.rstrip('/')}/internal/auth/introspect",
+                    headers={
+                        "content-type": "application/json",
+                        "x-salecentar-module": "hermes-x402",
+                        "x-salecentar-service-key": secret,
+                    },
+                    content=_json.dumps({"token": token}),
+                )
+                if introspect.status_code != 200:
+                    return False
+                user = introspect.json().get("user") or {}
+                if user.get("role") != "admin":
+                    return False
+                user_id = user.get("id") or ""
+                if not user_id:
+                    return False
+                entitlement = await client.post(
+                    f"{base.rstrip('/')}/internal/auth/entitlement",
+                    headers={
+                        "content-type": "application/json",
+                        "x-salecentar-module": "hermes-x402",
+                        "x-salecentar-service-key": secret,
+                    },
+                    content=_json.dumps({"user_id": user_id}),
+                )
+                if entitlement.status_code != 200:
+                    return False
+                return entitlement.json().get("enabled") is True
+        except Exception:
+            return False
 
     # -- settlement ----------------------------------------------------
 

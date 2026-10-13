@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { apiRouter } from "./server/api.ts";
-import {centralLogin,centralLogout,requireCentralSession} from "./server/centralAuth.ts";
+import {centralLogin,centralLogout,requireCentralSession,requireEntitlement} from "./server/centralAuth.ts";
 import {speechBridge} from "./server/speechBridge.ts";
 
 dotenv.config();
@@ -28,8 +28,8 @@ app.post('/api/auth/login',async(req,res)=>{
  }catch{return res.status(503).json({error:'Central authentication unavailable'});}
 });
 app.post('/api/auth/logout',centralLogout);
-app.post('/api/integrations/speech',requireCentralSession,speechBridge);
-app.use('/api',requireCentralSession,apiRouter);
+app.post('/api/integrations/speech',requireCentralSession,requireEntitlement,speechBridge);
+app.use('/api',requireCentralSession,requireEntitlement,apiRouter);
 
 // Serve client in production
 if(process.env.NODE_ENV!=='production'){

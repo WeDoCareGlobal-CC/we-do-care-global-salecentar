@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool, migrate } from './server/db';
-import { installRoutes, aiQuota } from './server/routes';
+import { installRoutes, aiQuota, requireEntitlement } from './server/routes';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -18,7 +18,7 @@ async function startServer() {
   await migrate();
   app.get('/api/health', (_req,res) => res.json({status:'ok'}));
   installRoutes(app);
-  app.use(['/api/parse-menu','/api/generate-food-photo','/api/edit-food-photo'], aiQuota);
+  app.use(['/api/parse-menu','/api/generate-food-photo','/api/edit-food-photo'], requireEntitlement, aiQuota);
 
   // Helper to get GoogleGenAI client lazily
   const getGenAIClient = () => {

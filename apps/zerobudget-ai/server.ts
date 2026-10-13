@@ -1,4 +1,4 @@
-import {centralIdentity,centralLogin} from "./centralAuth";
+import {centralIdentity,centralLogin,checkCentralEntitlement} from "./centralAuth";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -70,6 +70,20 @@ async function startServer() {
     if (count >= dailyLimit) return res.status(429).json({ error: "Daily AI limit reached" });
     aiUsage.set("owner", { day, count: count + 1 });
     next();
+  }
+
+  // Entitlement check middleware: verifies user has grant for 'zerobudget-ai' module
+  async function requireEntitlement(req: express.Request, res: express.Response, next: express.NextFunction) {
+    try {
+      if(!process.env.SALECENTAR_AUTH_URL){next();return;}
+      const header = req.get("authorization") || "";
+      const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+      const user=await centralIdentity(token,'zerobudget-ai');
+      if(!user)return res.status(401).json({error:'Central login required'});
+      const hasEntitlement=await checkCentralEntitlement(user.id,'zerobudget-ai');
+      if(!hasEntitlement){res.status(403).json({error:'Module access not granted'});return;}
+      next();
+    }catch{res.status(503).json({error:'Entitlement check unavailable'});}
   }
 
   app.post('/api/auth/login',async(req,res)=>{
@@ -149,7 +163,7 @@ async function startServer() {
   });
 
   // Custom Niche & Copy Generator API endpoint
-  app.post("/api/generate-custom", guardAi, async (req, res) => {
+  app.post("/api/generate-custom", requireEntitlement, guardAi, async (req, res) => {
     try {
       const { prompt, language = "bs" } = req.body;
       if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 6000 || !["bs", "en"].includes(language)) {
