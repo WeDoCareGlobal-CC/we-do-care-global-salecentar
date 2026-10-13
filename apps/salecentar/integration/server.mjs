@@ -321,7 +321,16 @@ const server=http.createServer(async(req,res)=>{
    return respond(res,200,{ok:true,received:rows.length,created:accepted});
   }
   if(url.pathname.startsWith('/admin/')){
-   if(!await authorized(req,req.method==='POST'?'admin':'viewer'))return respond(res,401,{error:'Unauthorized'});
+   const needsAdmin=req.method==='POST'||req.method==='DELETE'||req.method==='PATCH';
+   if(!await authorized(req,needsAdmin?'admin':'viewer'))return respond(res,401,{error:'Unauthorized'});
+   if(req.method==='DELETE'&&url.pathname.startsWith('/admin/users/')){
+    const userId=url.pathname.slice('/admin/users/'.length);
+    if(!/^[0-9a-f-]{36}$/i.test(userId))return respond(res,400,{error:'Invalid user id'});
+    await pool.query('DELETE FROM sc_module_entitlements WHERE user_id=$1',[userId]);
+    await pool.query('DELETE FROM sc_sessions WHERE user_id=$1',[userId]);
+    await pool.query('DELETE FROM sc_users WHERE id=$1',[userId]);
+    return respond(res,200,{ok:true});
+   }
    if(req.method==='POST'&&url.pathname==='/admin/users'){
     const input=JSON.parse((await read(req)).toString('utf8'));
     if(typeof input?.email!=='string'||!/^\S+@\S+\.\S+$/.test(input.email)||

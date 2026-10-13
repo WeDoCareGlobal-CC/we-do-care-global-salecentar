@@ -3,8 +3,26 @@
 # Usage: BASE=http://127.0.0.1:32500 bash scripts/cross-module-entitlement-test.sh
 # Requires the central server started with SALECENTAR_ALLOW_LEGACY_ADMIN=true
 # and module secrets as configured below.
+#
+# SAFETY: this script creates a throwaway viewer user in the target database.
+# By default it only runs against localhost. Pointing it at a remote/production
+# host requires the explicit ALLOW_REMOTE=1 override, and the created user is
+# always deleted on exit (including on failure, via trap).
 set -u
 BASE="${BASE:-http://127.0.0.1:32500}"
+
+# Refuse non-localhost targets unless the operator explicitly opts in.
+case "$BASE" in
+  http://127.0.0.1*|http://localhost*|https://127.0.0.1*|https://localhost*) ;;
+  *)
+    if [ "${ALLOW_REMOTE:-0}" != "1" ]; then
+      echo "REFUSING: BASE=$BASE is not localhost. This script writes test data."
+      echo "If you really intend to test a remote/staging host, re-run with ALLOW_REMOTE=1."
+      exit 2
+    fi
+    echo "WARNING: running against non-localhost $BASE with ALLOW_REMOTE=1" >&2
+    ;;
+esac
 PASS=0; FAIL=0
 check(){
   if [ "$2" = "$3" ]; then echo "PASS | $1 (got $3)"; PASS=$((PASS+1));
@@ -18,6 +36,19 @@ HSEC="${HSEC:-$(printf 'h%.0s' {1..40})}"; ASEC="${ASEC:-$(printf 'a%.0s' {1..40
 # Provision a fresh viewer through the admin API, then log in.
 VEMAIL="xmod-$(date +%s)@example.org"
 VPASS="CrossModule-Test-2026!"
+VID=""
+VTOK=""
+cleanup(){
+  if [ -n "$VTOK" ]; then
+    curl -s -o /dev/null -X POST "$BASE/auth/logout" -H "authorization: Bearer $VTOK" 2>/dev/null || true
+  fi
+  if [ -n "$VID" ]; then
+    echo "cleanup: removing test user $VEMAIL"
+    curl -s -o /dev/null -X DELETE "$BASE/admin/users/$VID" -H "authorization: Bearer $ASEC" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
 curl -s -o /dev/null -X POST "$BASE/admin/users" -H "$H" -H "authorization: Bearer $ASEC" \
   -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\",\"role\":\"viewer\"}" || { echo "FATAL: user create failed"; exit 1; }
 VJSON=$(curl -s -X POST "$BASE/auth/login" -H "$H" -d "{\"email\":\"$VEMAIL\",\"password\":\"$VPASS\"}")
