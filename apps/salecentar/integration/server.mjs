@@ -1,3 +1,4 @@
+import { sessionCookies, clearSessionCookies, createSessionToken, createCsrfToken, resolveV2Session, validCsrf, validSameOrigin, parseCookies, hashV2Token, v2SessionCookieName } from './v2-session.mjs';
 import http from 'node:http';
 import {validateHermesSettlement,sameHermesSettlement,classifyHermesBalances} from './hermes-policy.mjs';
 import {readFile} from 'node:fs/promises';
@@ -186,6 +187,50 @@ const server=http.createServer(async(req,res)=>{
     await client.query('COMMIT');
     return respond(res,201,{ok:true});
    }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+  }
+  // SaleCentar v2: independent, cookie-based session endpoints.
+  // Enable only on an isolated HTTPS staging origin.
+  if(url.pathname.startsWith('/api/v2/')){
+   const origin=process.env.SALECENTAR_V2_ORIGIN;
+   if(!origin || !/^https:\/\//.test(origin))return respond(res,503,{error:'V2 staging origin not configured'});
+   const mutation=req.method!=='GET';
+   if(mutation && !validSameOrigin(req,origin))return respond(res,403,{error:'Origin mismatch'});
+   if(req.method==='POST'&&url.pathname==='/api/v2/login'){
+    const ip=req.socket.remoteAddress||'unknown';
+    const attempt=loginAttempts.get(ip);
+    if(attempt&&attempt.until>Date.now()&&attempt.count>=8)return respond(res,429,{error:'Too many login attempts'});
+    if(!attempt||attempt.until<=Date.now())loginAttempts.set(ip,{count:0,until:Date.now()+15*60_000});
+    const data=JSON.parse((await read(req)).toString('utf8'));
+    if(typeof data?.email!=='string'||typeof data?.password!=='string'||data.email.length>254||data.password.length>1024)
+     return respond(res,400,{error:'Invalid credentials'});
+    const q=await pool.query('SELECT id,email,password_hash,role FROM sc_users WHERE email=$1 AND active=true',[data.email.toLowerCase()]);
+    if(!q.rowCount||!checkPassword(data.password,q.rows[0].password_hash)){
+     loginAttempts.get(ip).count++;
+     return respond(res,401,{error:'Invalid credentials'});
+    }
+    loginAttempts.delete(ip);
+    const token=createSessionToken(),csrf=createCsrfToken();
+    await pool.query("INSERT INTO sc_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '8 hours')",[hashV2Token(token),q.rows[0].id]);
+    res.setHeader('Set-Cookie',sessionCookies(token,csrf));
+    return respond(res,200,{user:{id:q.rows[0].id,email:q.rows[0].email,role:q.rows[0].role}});
+   }
+   const user=await resolveV2Session(pool,req.headers.cookie);
+   if(!user)return respond(res,401,{error:'Sign in required'});
+   if(req.method==='GET'&&url.pathname==='/api/v2/session')return respond(res,200,{user});
+   if(req.method==='GET'&&url.pathname==='/api/v2/modules'){
+    const catalog=JSON.parse(await readFile(new URL('../../../catalog/products.json',import.meta.url),'utf8'));
+    const grants=await pool.query('SELECT module_id,enabled FROM sc_module_entitlements WHERE user_id=$1',[user.id]);
+    const enabled=new Map(grants.rows.map(x=>[x.module_id,x.enabled]));
+    return respond(res,200,{modules:catalog.products.map(p=>({module_id:p.id,name:p.name,status:p.status,enabled:enabled.get(p.id)===true}))});
+   }
+   if(req.method==='POST'&&url.pathname==='/api/v2/logout'){
+    if(!validCsrf(req.headers.cookie,req.headers['x-csrf-token']))return respond(res,403,{error:'Invalid CSRF token'});
+    const token=parseCookies(req.headers.cookie).get(v2SessionCookieName);
+    await pool.query('DELETE FROM sc_sessions WHERE token_hash=$1',[hashV2Token(token)]);
+    res.setHeader('Set-Cookie',clearSessionCookies());
+    return respond(res,200,{ok:true});
+   }
+   return respond(res,404,{error:'Not found'});
   }
   if(req.method==='POST'&&url.pathname==='/auth/login'){
    const ip=req.socket.remoteAddress||'unknown';
