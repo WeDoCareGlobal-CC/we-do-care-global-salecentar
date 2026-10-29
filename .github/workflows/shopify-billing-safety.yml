@@ -1,0 +1,28 @@
+name: SaleCentar Shopify billing safety
+on:
+  pull_request:
+    paths:
+      - 'apps/salecentar/integration/shopify-*.mjs'
+      - 'apps/salecentar/integration/server.mjs'
+      - '.github/workflows/shopify-billing-safety.yml'
+  workflow_dispatch:
+jobs:
+  billing-safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/salecentar/integration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax-check server and Shopify modules
+        run: |
+          node --check server.mjs
+          node --check shopify-billing.mjs
+          node --check shopify-webhook-inbox.mjs
+      - name: Run Shopify billing security unit tests
+        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs
