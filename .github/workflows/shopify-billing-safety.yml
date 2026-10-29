@@ -24,5 +24,6 @@ jobs:
           node --check server.mjs
           node --check shopify-billing.mjs
           node --check shopify-webhook-inbox.mjs
+          node --check shopify-order-reconcile.mjs
       - name: Run Shopify billing security unit tests
-        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs
+        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs shopify-order-reconcile.test.mjs
