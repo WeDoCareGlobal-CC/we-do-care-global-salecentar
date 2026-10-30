@@ -1,3 +1,6 @@
+import { SHOPIFY_REVIEWS_DDL } from './shopify-order-review.mjs';
+import { SHOPIFY_GRANT_DDL } from './shopify-grant-tx.mjs';
+import { SHOPIFY_REVOCATION_DDL } from './shopify-revoke-tx.mjs';
 import { SHOPIFY_INBOX_DDL, recordShopifyWebhook } from './shopify-webhook-inbox.mjs';
 import { sessionCookies, clearSessionCookies, createSessionToken, createCsrfToken, resolveV2Session, validCsrf, validSameOrigin, parseCookies, hashV2Token, v2SessionCookieName } from './v2-session.mjs';
 import http from 'node:http';
@@ -54,7 +57,12 @@ await pool.query(`CREATE TABLE IF NOT EXISTS sc_speech_usage(
  day DATE NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','succeeded','failed')),
  characters INTEGER NOT NULL CHECK(characters BETWEEN 1 AND 3000),
  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), finished_at TIMESTAMPTZ)`);
-if(shopifyWebhookSecret) await pool.query(SHOPIFY_INBOX_DDL);
+if(shopifyWebhookSecret) {
+ await pool.query(SHOPIFY_INBOX_DDL);
+ await pool.query(SHOPIFY_REVIEWS_DDL);
+ await pool.query(SHOPIFY_GRANT_DDL);
+ await pool.query(SHOPIFY_REVOCATION_DDL);
+}
 const moduleIds=new Set(['menu-snap','zerobudget-ai','muse-flow','hermes-x402','speech-generator']);
 const speechLimit=Number(process.env.SPEECH_DAILY_LIMIT||20);
 if(!Number.isInteger(speechLimit)||speechLimit<1||speechLimit>100000)throw Error('Invalid SPEECH_DAILY_LIMIT');
