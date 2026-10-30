@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {entitlementDecision} from './shopify-access-policy.mjs';
+const id='gid://shopify/Order/123',customerId='gid://shopify/Customer/456',variant='gid://shopify/ProductVariant/789';
+const userId='ae2c3654-4567-4567-8567-123456789abc';
+const ok={review:{verified:true,reason:'fully_paid_eligible_order',orderId:id,customerId,lines:[{variantId:variant,quantity:1}]},identity:{verified:true,shopifyCustomerId:customerId,userId},offer:{kind:'one_time',moduleId:'muse-flow',moduleEnforcesAccess:true,variantId:variant}};
+test('eligible one-time purchase requires all attestations',()=>assert.equal(entitlementDecision(ok).allow,true));
+test('unverified paid order denied',()=>assert.equal(entitlementDecision({...ok,review:{...ok.review,verified:false}}).allow,false));
+test('customer mismatch denied',()=>assert.equal(entitlementDecision({...ok,identity:{...ok.identity,shopifyCustomerId:'gid://shopify/Customer/999'}}).allow,false));
+test('subscription without verified billing lifecycle denied',()=>assert.equal(entitlementDecision({...ok,offer:{...ok.offer,kind:'subscription'}}).allow,false));
+test('unmetered module denied',()=>assert.equal(entitlementDecision({...ok,offer:{...ok.offer,moduleEnforcesAccess:false}}).allow,false));
+test('wrong variant denied',()=>assert.equal(entitlementDecision({...ok,offer:{...ok.offer,variantId:'gid://shopify/ProductVariant/999'}}).allow,false));
+test('duplicate grant denied',()=>assert.equal(entitlementDecision({...ok,previousGrant:{orderId:id,variantId:variant}}).allow,false));
