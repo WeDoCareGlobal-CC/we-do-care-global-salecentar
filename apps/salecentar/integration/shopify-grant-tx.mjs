@@ -19,6 +19,20 @@ CREATE TABLE IF NOT EXISTS sc_shopify_grants (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY(shop,order_id,variant_id)
 );
+DO $migration$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'sc_shopify_grants'::regclass
+      AND conname = 'sc_shopify_grants_user_id_fkey'
+      AND confdeltype <> 'c'
+  ) THEN
+    ALTER TABLE sc_shopify_grants DROP CONSTRAINT sc_shopify_grants_user_id_fkey;
+    ALTER TABLE sc_shopify_grants ADD CONSTRAINT sc_shopify_grants_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES sc_users(id) ON DELETE CASCADE;
+  END IF;
+END
+$migration$;
 `;
 
 // Trusted internal worker only. Does NOT generate identity proofs or trust webhook claims.
