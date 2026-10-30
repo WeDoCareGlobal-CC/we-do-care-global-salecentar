@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, CreditCard, ExternalLink, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
 const previewOnly = import.meta.env.VITE_SALECENTAR_PREVIEW_ONLY === '1';
