@@ -6,7 +6,7 @@ const id='gid://shopify/Order/123';
 const variant='gid://shopify/ProductVariant/55';
 const approved = new Set([variant]);
 const paid = {
-  id, cancelledAt:null, displayFinancialStatus:'PAID',
+  id, cancelledAt:null, test:false, displayFinancialStatus:'PAID',
   customer:{id:'gid://shopify/Customer/88'},
   lineItems:{nodes:[{quantity:1,variant:{id:variant},sellingPlan:null,priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39.00',currencyCode:'BAM'}}}],pageInfo:{hasNextPage:false}}
 };
@@ -72,4 +72,11 @@ test('a free approved line bundled with paid unrelated item cannot activate acce
  const free={...paid.lineItems.nodes[0],priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'0',currencyCode:'BAM'}}};
  const other={...paid.lineItems.nodes[0],variant:{id:'gid://shopify/ProductVariant/999'},priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'50',currencyCode:'BAM'}}};
  assert.equal(evaluateShopifyOrder({...paid,lineItems:{...paid.lineItems,nodes:[free,other]}},id,approved).verified,false);
+});
+
+test('Shopify test gateway and missing test flag never activate paid access',()=>{
+ assert.equal(evaluateShopifyOrder({...paid,test:true},id,approved).verified,false);
+ const {test:ignored,...withoutTestFlag}=paid;
+ assert.equal(evaluateShopifyOrder(withoutTestFlag,id,approved).verified,false);
+ assert.equal(evaluateShopifyOrder(paid,id,approved).verified,true);
 });
