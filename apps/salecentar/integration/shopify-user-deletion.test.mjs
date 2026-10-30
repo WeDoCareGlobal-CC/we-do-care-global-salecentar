@@ -16,3 +16,7 @@ test('user deletion retains existing admin authorization and removes user',async
   assert.match(source,/if\(req\.method==='DELETE'&&url\.pathname\.startsWith\('\/admin\/users\/'\)\)/);
   assert.match(source,/DELETE FROM sc_users WHERE id=\$1/);
 });
+
+test('PostgreSQL DO migration block terminates with END semicolon',()=>{
+  assert.match(SHOPIFY_GRANT_DDL,/DO \\$migration\\$[\\s\\S]*?END;\\s*\\$migration\\$;/);
+});
