@@ -46,3 +46,21 @@ test('only orders/paid on new store may enqueue paid-order review',()=>{
  assert.equal(orderIdFromPaidWebhook({shop:'k0702i-dq.myshopify.com',
   topic:'refunds/create',payload:{id:456}}),null);
 });
+
+test('review timestamp is captured before Admin API and stale responses cannot overwrite newer state',async()=>{
+ let resolveShopify;
+ const api=new Promise(resolve=>{resolveShopify=resolve;});
+ let query;
+ const pool={query:async(sql,args)=>{query={sql,args};return {rowCount:1};}};
+ const pending=reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+   approvedVariants:new Set([variant]),fetchImpl:async()=>api,pool});
+ await new Promise(resolve=>setImmediate(resolve));
+ const firstSeenAt=Date.now();
+ resolveShopify(fakeFetch(paid)());
+ await pending;
+ assert(query.sql.includes('WHERE sc_shopify_order_reviews.checked_at <= EXCLUDED.checked_at'));
+ assert(query.sql.includes('checked_at=EXCLUDED.checked_at'));
+ assert.equal(query.args.length,7);
+ assert(Number.isFinite(Date.parse(query.args[6])));
+ assert(Date.parse(query.args[6])<=firstSeenAt);
+});
