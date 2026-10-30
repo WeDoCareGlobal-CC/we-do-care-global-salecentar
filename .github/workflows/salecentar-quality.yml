@@ -44,6 +44,7 @@ jobs:
           node --test scripts/verify-config.test.mjs
           node scripts/release-audit.mjs
           node --test scripts/release-audit.test.mjs
+          node --test scripts/vercel-preview.test.mjs
   module-builds:
     runs-on: ubuntu-24.04
     strategy:
