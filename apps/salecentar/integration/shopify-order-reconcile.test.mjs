@@ -8,7 +8,7 @@ const approved = new Set([variant]);
 const paid = {
   id, cancelledAt:null, displayFinancialStatus:'PAID',
   customer:{id:'gid://shopify/Customer/88'},
-  lineItems:{nodes:[{quantity:1,variant:{id:variant}}],pageInfo:{hasNextPage:false}}
+  lineItems:{nodes:[{quantity:1,variant:{id:variant},sellingPlan:null,priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39.00',currencyCode:'BAM'}}}],pageInfo:{hasNextPage:false}}
 };
 test('verified paid order with allowlisted variant is a candidate, not an entitlement',()=>{
   assert.deepEqual(evaluateShopifyOrder(paid,id,approved),{
@@ -55,4 +55,21 @@ test('network failures fail closed',async()=>{
     orderId:id,accessToken:'test-token-valid-for-mock-only',approvedVariants:approved,
     fetchImpl:async()=>({ok:true,json:async()=>({errors:[{message:'denied'}]})})
   }),/failed/);
+});
+
+test('free, fully discounted, non-BAM and subscription lines cannot activate paid access',()=>{
+ for(const amount of ['0','0.00','-1','not-a-number']){
+  const line={...paid.lineItems.nodes[0],priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount,currencyCode:'BAM'}}};
+  const order={...paid,lineItems:{...paid.lineItems,nodes:[line]}};
+  assert.equal(evaluateShopifyOrder(order,id,approved).verified,false,'amount '+amount);
+ }
+ const subscription={...paid.lineItems.nodes[0],sellingPlan:{name:'Monthly'}};
+ assert.equal(evaluateShopifyOrder({...paid,lineItems:{...paid.lineItems,nodes:[subscription]}},id,approved).verified,false);
+ const foreign={...paid.lineItems.nodes[0],priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39',currencyCode:'USD'}}};
+ assert.equal(evaluateShopifyOrder({...paid,lineItems:{...paid.lineItems,nodes:[foreign]}},id,approved).verified,false);
+});
+test('a free approved line bundled with paid unrelated item cannot activate access',()=>{
+ const free={...paid.lineItems.nodes[0],priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'0',currencyCode:'BAM'}}};
+ const other={...paid.lineItems.nodes[0],variant:{id:'gid://shopify/ProductVariant/999'},priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'50',currencyCode:'BAM'}}};
+ assert.equal(evaluateShopifyOrder({...paid,lineItems:{...paid.lineItems,nodes:[free,other]}},id,approved).verified,false);
 });
