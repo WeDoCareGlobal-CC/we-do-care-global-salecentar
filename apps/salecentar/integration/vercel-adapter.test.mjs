@@ -43,3 +43,25 @@ test('enabled adapter blocks risky routes before backend import', async () => {
     else process.env.SALECENTAR_VERCEL_API_ENABLED = old;
   }
 });
+
+test('enabled liveness health never checks database or commerce', async () => {
+  const old = process.env.SALECENTAR_VERCEL_API_ENABLED;
+  process.env.SALECENTAR_VERCEL_API_ENABLED = 'true';
+  try {
+    for (const path of ['/health', '/health?probe=1']) {
+      const r = await request('GET', path);
+      assert.equal(r.status, 200, path);
+      assert.equal(r.headers['Cache-Control'], 'no-store');
+      assert.deepEqual(JSON.parse(r.body), {
+        ok: true,
+        component: 'salecentar-vercel-adapter',
+        check: 'liveness-only',
+        database: 'not-checked',
+        commerce: 'disabled',
+      });
+    }
+  } finally {
+    if (old === undefined) delete process.env.SALECENTAR_VERCEL_API_ENABLED;
+    else process.env.SALECENTAR_VERCEL_API_ENABLED = old;
+  }
+});
