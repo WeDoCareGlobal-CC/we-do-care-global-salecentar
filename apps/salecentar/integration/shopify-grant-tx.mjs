@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS sc_shopify_grants (
   shop TEXT NOT NULL CHECK (shop='k0702i-dq.myshopify.com'),
   order_id TEXT NOT NULL,
   variant_id TEXT NOT NULL,
-  user_id UUID NOT NULL REFERENCES sc_users(id),
+  user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
   module_id TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY(shop,order_id,variant_id)
