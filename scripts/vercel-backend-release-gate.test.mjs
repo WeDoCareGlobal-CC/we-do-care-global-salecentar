@@ -21,8 +21,12 @@ test('Vercel exposes only read-only frontend; backend remains excluded', async (
 
 test('Legacy integration server is not a Vercel Function entrypoint', async () => {
   const source = await read('apps/salecentar/integration/server.mjs');
-  assert.match(source, /http\.createServer\(/);
-  assert.match(source, /server\.listen\(/);
-  assert.match(source, /await pool\.query\(`CREATE TABLE/);
+  assert.match(source, /export const handleRequest=async/);
+  assert.match(source, /fileURLToPath\\(import\\.meta\\.url\\)/);
+  assert.match(source, /await runMigrations/);
+  const migrations = await read('apps/salecentar/integration/migrations.mjs');
+  assert.match(migrations, /export async function runMigrations/);
+  assert.match(migrations, /CREATE TABLE IF NOT EXISTS salecentar_orders/);
+  assert.ok(!source.includes('await pool.query(`CREATE TABLE'), 'DDL never runs during handler import');
   assert.ok(!JSON.parse(await read('vercel.json')).services.integration);
 });
