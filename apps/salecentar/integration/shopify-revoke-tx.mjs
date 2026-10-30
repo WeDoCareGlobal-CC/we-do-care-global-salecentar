@@ -17,9 +17,12 @@ export async function revokeIneligibleOrder({pool,orderId}) {
   try {
     await client.query('BEGIN');
     const review=await client.query(`
-      SELECT verified,reason FROM sc_shopify_order_reviews
+      SELECT verified,reason,checked_at FROM sc_shopify_order_reviews
       WHERE shop=$1 AND order_id=$2 FOR UPDATE
     `,[SHOP_DOMAIN,orderId]);
+    const checkedAt=Date.parse(review.rows[0]?.checked_at);
+    if(!Number.isFinite(checkedAt)||checkedAt>Date.now()||Date.now()-checkedAt>300000)
+      throw Error('Fresh Shopify reconciliation required');
     if(review.rowCount!==1 || review.rows[0].verified!==false ||
         !['cancelled','not_fully_paid','no_eligible_lines'].includes(review.rows[0].reason))
       throw Error('Authoritative ineligible review required');
