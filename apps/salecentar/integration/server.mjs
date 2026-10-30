@@ -52,6 +52,7 @@ await pool.query(`CREATE TABLE IF NOT EXISTS sc_module_entitlements(
  module_id TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT false,
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  PRIMARY KEY(user_id,module_id))`);
+await pool.query(`ALTER TABLE sc_module_entitlements ADD COLUMN IF NOT EXISTS provisioning_source TEXT NOT NULL DEFAULT 'manual'`);
 await pool.query(`CREATE TABLE IF NOT EXISTS sc_speech_usage(
  request_id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
  day DATE NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','succeeded','failed')),
