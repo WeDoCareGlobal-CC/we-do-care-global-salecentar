@@ -64,3 +64,14 @@ test('review timestamp is captured before Admin API and stale responses cannot o
  assert(Number.isFinite(Date.parse(query.args[6])));
  assert(Date.parse(query.args[6])<=firstSeenAt);
 });
+
+test('superseded Shopify response never reports verified success',async()=>{
+ const pool={query:async(sql,args)=>{
+  assert.match(sql,/WHERE sc_shopify_order_reviews.checked_at < EXCLUDED.checked_at/);
+  assert.match(sql,/RETURNING order_id/);
+  return {rowCount:0,rows:[]};
+ }};
+ const result=await reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+  approvedVariants:new Set([variant]),fetchImpl:fakeFetch(paid),pool});
+ assert.deepEqual(result,{orderId:id,verified:false,reason:'superseded_by_newer_review',grantsCreated:0});
+});
