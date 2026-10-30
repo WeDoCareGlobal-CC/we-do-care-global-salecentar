@@ -37,12 +37,12 @@ $migration$;
 
 // Trusted internal worker only. Does NOT generate identity proofs or trust webhook claims.
 export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId,enforcedModules,approvedOffers,maxReviewAgeMs=300000}) {
+  if (!(enforcedModules instanceof Set) || !enforcedModules.has(moduleId))
+    throw Error('Module access enforcement not verified');
   if (!(approvedOffers instanceof Map) || approvedOffers.get(variantId)!==moduleId)
     throw Error('Variant-to-module mapping not verified');
   if (!Number.isInteger(maxReviewAgeMs) || maxReviewAgeMs<1 || maxReviewAgeMs>300000)
     throw Error('Invalid review freshness policy');
-  if (!(enforcedModules instanceof Set) || !enforcedModules.has(moduleId))
-    throw Error('Module access enforcement not verified');
   if (!pool?.connect) throw Error('Database unavailable');
   const client=await pool.connect();
   try {
