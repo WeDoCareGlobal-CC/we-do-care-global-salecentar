@@ -4,6 +4,7 @@ const ORDER_QUERY = `query SaleCentarOrderVerification($id: ID!) {
   order(id: $id) {
     id
     cancelledAt
+    test
     displayFinancialStatus
     customer { id }
     lineItems(first: 100) {
@@ -21,6 +22,8 @@ export function evaluateShopifyOrder(order, expectedOrderId, approvedVariants) {
   if (!ORDER_ID.test(expectedOrderId) || order?.id !== expectedOrderId)
     return { verified: false, reason: 'order_mismatch' };
   if (order.cancelledAt != null) return { verified: false, reason: 'cancelled' };
+  // Shopify test-gateway payments are not real revenue; missing test flag also fails closed.
+  if (order.test !== false) return { verified: false, reason: 'test_or_unverified_order' };
   if (order.displayFinancialStatus === 'PARTIALLY_REFUNDED')
     return { verified: false, reason: 'partial_refund_requires_line_review' };
   if (order.displayFinancialStatus === 'REFUNDED')
