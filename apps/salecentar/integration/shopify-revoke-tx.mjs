@@ -43,7 +43,7 @@ export async function revokeIneligibleOrder({pool,orderId}) {
       if(!other.rowCount){
         await client.query(`
           UPDATE sc_module_entitlements SET enabled=false,updated_at=now()
-          WHERE user_id=$1 AND module_id=$2
+          WHERE user_id=$1 AND module_id=$2 AND provisioning_source='shopify'
         `,[userId,moduleId]);
       }
     }
