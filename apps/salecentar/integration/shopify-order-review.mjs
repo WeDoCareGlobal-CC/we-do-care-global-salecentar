@@ -27,7 +27,7 @@ export async function reviewShopifyOrder({
   const lines = order.verified ? order.lines : [];
   const customerId = order.verified ? order.customerId : null;
   const reason = order.verified ? 'fully_paid_eligible_order' : order.reason;
-  await pool.query(`
+  const write = await pool.query(`
     INSERT INTO sc_shopify_order_reviews
       (shop,order_id,customer_id,verified,reason,eligible_lines,checked_at)
     VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::timestamptz)
@@ -37,8 +37,11 @@ export async function reviewShopifyOrder({
       reason=EXCLUDED.reason,
       eligible_lines=EXCLUDED.eligible_lines,
       checked_at=EXCLUDED.checked_at
-    WHERE sc_shopify_order_reviews.checked_at <= EXCLUDED.checked_at
+    WHERE sc_shopify_order_reviews.checked_at < EXCLUDED.checked_at
+    RETURNING order_id
   `,[SHOP_DOMAIN,orderId,customerId,order.verified,reason,JSON.stringify(lines),checkStartedAt.toISOString()]);
+  // A superseded response is NOT a successfully reconciled review.
+  if (write.rowCount !== 1) return { orderId, verified:false, reason:'superseded_by_newer_review', grantsCreated:0 };
   return { orderId, verified:order.verified, reason, grantsCreated:0 };
 }
 
