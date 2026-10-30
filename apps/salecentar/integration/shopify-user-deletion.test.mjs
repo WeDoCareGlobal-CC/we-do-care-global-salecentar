@@ -18,5 +18,5 @@ test('user deletion retains existing admin authorization and removes user',async
 });
 
 test('PostgreSQL DO migration block terminates with END semicolon',()=>{
-  assert.match(SHOPIFY_GRANT_DDL,/DO \\$migration\\$[\\s\\S]*?END;\\s*\\$migration\\$;/);
+  assert.match(SHOPIFY_GRANT_DDL,/DO \$migration\$[\s\S]*?END;\s*\$migration\$;/);
 });
