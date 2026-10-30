@@ -1,9 +1,11 @@
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { runMigrations } from './migrations.mjs';
 import { SHOPIFY_REVIEWS_DDL } from './shopify-order-review.mjs';
 import { SHOPIFY_GRANT_DDL } from './shopify-grant-tx.mjs';
 import { SHOPIFY_REVOCATION_DDL } from './shopify-revoke-tx.mjs';
 import { SHOPIFY_INBOX_DDL, recordShopifyWebhook } from './shopify-webhook-inbox.mjs';
 import { sessionCookies, clearSessionCookies, createSessionToken, createCsrfToken, resolveV2Session, validCsrf, validSameOrigin, parseCookies, hashV2Token, v2SessionCookieName } from './v2-session.mjs';
-import http from 'node:http';
 import {validateHermesSettlement,sameHermesSettlement,classifyHermesBalances} from './hermes-policy.mjs';
 import {readFile} from 'node:fs/promises';
 import pg from 'pg';
@@ -21,49 +23,6 @@ const databaseUrl=process.env.SALECENTAR_DATABASE_URL;
 if(Object.values(keys).some(v=>!v||v.length<32)||keys['menu-snap']===keys['zerobudget-ai']||(process.env.SALECENTAR_ALLOW_LEGACY_ADMIN==='true'&&(!adminToken||adminToken.length<32))||!databaseUrl)
  throw Error('Set distinct source secrets, admin token and database URL');
 const pool=new Pool({connectionString:databaseUrl,ssl:process.env.PG_SSL==='true'?{rejectUnauthorized:true}:undefined});
-await pool.query(`CREATE TABLE IF NOT EXISTS salecentar_orders(
- source TEXT NOT NULL,source_order_id UUID NOT NULL,customer_email TEXT NOT NULL,
- offer_code TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,
- status TEXT NOT NULL DEFAULT 'pending',external_payment_reference TEXT,
- source_created_at TIMESTAMPTZ,updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
- PRIMARY KEY(source,source_order_id))`);
-await pool.query(`CREATE TABLE IF NOT EXISTS salecentar_payment_events(
- id UUID PRIMARY KEY,source TEXT NOT NULL,source_order_id UUID NOT NULL,
- old_status TEXT NOT NULL,new_status TEXT NOT NULL,reference TEXT NOT NULL,
- actor TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
- FOREIGN KEY(source,source_order_id) REFERENCES salecentar_orders(source,source_order_id))`);
-await pool.query(`CREATE TABLE IF NOT EXISTS sc_hermes_settlements(
- network TEXT NOT NULL,tx_hash TEXT NOT NULL,nonce TEXT NOT NULL,
- asset TEXT NOT NULL,amount_atomic NUMERIC(78,0) NOT NULL CHECK(amount_atomic>0),
- payer TEXT NOT NULL,pay_to TEXT NOT NULL,resource TEXT NOT NULL,
- settlement_mode TEXT NOT NULL CHECK(settlement_mode IN ('facilitator_reported','simulated','unverified')),
- source_created_at TIMESTAMPTZ,ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
- PRIMARY KEY(network,nonce),UNIQUE(network,tx_hash,asset)
-)`); 
-await pool.query(`CREATE TABLE IF NOT EXISTS sc_users(
- id UUID PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,
- role TEXT NOT NULL CHECK(role IN ('admin','viewer')),active BOOLEAN NOT NULL DEFAULT true,
- created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-await pool.query(`CREATE TABLE IF NOT EXISTS sc_sessions(
- token_hash TEXT PRIMARY KEY,user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
- expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-await pool.query(`CREATE TABLE IF NOT EXISTS sc_module_entitlements(
- user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
- module_id TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT false,
- updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
- PRIMARY KEY(user_id,module_id))`);
-await pool.query(`ALTER TABLE sc_module_entitlements ADD COLUMN IF NOT EXISTS provisioning_source TEXT NOT NULL DEFAULT 'manual'`);
-await pool.query(`CREATE TABLE IF NOT EXISTS sc_speech_usage(
- request_id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
- day DATE NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','succeeded','failed')),
- characters INTEGER NOT NULL CHECK(characters BETWEEN 1 AND 3000),
- created_at TIMESTAMPTZ NOT NULL DEFAULT now(), finished_at TIMESTAMPTZ)`);
-if(shopifyWebhookSecret) {
- await pool.query(SHOPIFY_INBOX_DDL);
- await pool.query(SHOPIFY_REVIEWS_DDL);
- await pool.query(SHOPIFY_GRANT_DDL);
- await pool.query(SHOPIFY_REVOCATION_DDL);
-}
 const moduleIds=new Set(['menu-snap','zerobudget-ai','muse-flow','hermes-x402','speech-generator']);
 const speechLimit=Number(process.env.SPEECH_DAILY_LIMIT||20);
 if(!Number.isInteger(speechLimit)||speechLimit<1||speechLimit>100000)throw Error('Invalid SPEECH_DAILY_LIMIT');
@@ -87,7 +46,7 @@ const authorized=async(req,role='viewer')=>{
 };
 const clamp=(s,d,max)=>Number.isInteger(Number(s))?Math.max(0,Math.min(max,Number(s))):d;
 const loginAttempts=new Map();
-const server=http.createServer(async(req,res)=>{
+export const handleRequest=async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');
   if(req.method==='POST'&&url.pathname==='/webhooks/shopify'){
@@ -470,8 +429,13 @@ const server=http.createServer(async(req,res)=>{
   }
   return respond(res,404,{error:'Not found'});
  }catch(e){console.error('SaleCentar integration error:',e.message);return respond(res,e.message==='Payload too large'?413:400,{error:'Request could not be processed'});}
-});
+};
 const listenPort = Number(process.env.PORT || process.env.SALECENTAR_PORT || 3101);
 const listenHost = process.env.SALECENTAR_HOST || (process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
 if (!Number.isInteger(listenPort) || listenPort < 1 || listenPort > 65535) throw Error('Invalid SaleCentar listen port');
-server.listen(listenPort,listenHost,()=>console.log('We Do Care Global SaleCentar integration started'));
+// Importing this module for a Vercel handler never starts a listener or mutates the schema.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+ await runMigrations(pool,{shopifyWebhookSecret});
+ const { createServer } = await import('node:http');
+ createServer(handleRequest).listen(listenPort,listenHost,()=>console.log('We Do Care Global SaleCentar integration started'));
+}
