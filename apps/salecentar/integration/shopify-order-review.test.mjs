@@ -4,7 +4,7 @@ import { reviewShopifyOrder, orderIdFromPaidWebhook } from './shopify-order-revi
 
 const id='gid://shopify/Order/456';
 const variant='gid://shopify/ProductVariant/777';
-const paid={id,cancelledAt:null,displayFinancialStatus:'PAID',
+const paid={id,cancelledAt:null,test:false,displayFinancialStatus:'PAID',
  customer:{id:'gid://shopify/Customer/99'},
  lineItems:{nodes:[{quantity:2,variant:{id:variant},sellingPlan:null,priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39.00',currencyCode:'BAM'}}}],pageInfo:{hasNextPage:false}}
 };
@@ -58,7 +58,7 @@ test('review timestamp is captured before Admin API and stale responses cannot o
  const firstSeenAt=Date.now();
  resolveShopify(fakeFetch(paid)());
  await pending;
- assert(query.sql.includes('WHERE sc_shopify_order_reviews.checked_at <= EXCLUDED.checked_at'));
+ assert(query.sql.includes('WHERE sc_shopify_order_reviews.checked_at < EXCLUDED.checked_at'));
  assert(query.sql.includes('checked_at=EXCLUDED.checked_at'));
  assert.equal(query.args.length,7);
  assert(Number.isFinite(Date.parse(query.args[6])));
