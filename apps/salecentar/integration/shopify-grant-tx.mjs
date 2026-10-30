@@ -31,7 +31,7 @@ BEGIN
     ALTER TABLE sc_shopify_grants ADD CONSTRAINT sc_shopify_grants_user_id_fkey
       FOREIGN KEY (user_id) REFERENCES sc_users(id) ON DELETE CASCADE;
   END IF;
-END
+END;
 $migration$;
 `;
 
