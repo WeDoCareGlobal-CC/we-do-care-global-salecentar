@@ -39,7 +39,7 @@ export function evaluateShopifyOrder(order, expectedOrderId, approvedVariants) {
     Number.isSafeInteger(line.quantity) && line.quantity > 0 &&
     line.sellingPlan === null &&
     line.priceAfterAllDiscountsBeforeTaxesSet?.shopMoney?.currencyCode === 'BAM' &&
-    /^\\d+(?:\\.\\d+)?$/.test(String(line.priceAfterAllDiscountsBeforeTaxesSet?.shopMoney?.amount ?? '')) &&
+    /^\d+(?:\.\d+)?$/.test(String(line.priceAfterAllDiscountsBeforeTaxesSet?.shopMoney?.amount ?? '')) &&
     Number(line.priceAfterAllDiscountsBeforeTaxesSet.shopMoney.amount) > 0 &&
     VARIANT_ID.test(line.variant?.id || '') && approvedVariants.has(line.variant.id)
   ).map(line => ({ variantId: line.variant.id, quantity: line.quantity }));
