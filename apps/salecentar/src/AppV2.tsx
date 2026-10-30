@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, Search, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
@@ -26,6 +26,12 @@ function PreviewDashboard() {
   const [query, setQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedSolution, setSelectedSolution] = useState<(typeof showcase)[number] | null>(null);
+  const detailRef = useRef<HTMLElement | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const openDetails = (solution: (typeof showcase)[number], opener: HTMLButtonElement) => {
+    openerRef.current = opener;
+    setSelectedSolution(solution);
+  };
   const categories = ['All', 'AI Tools', 'Creative', 'Business'];
   const visible = showcase.filter(p => {
     const matchesCategory = category === 'All' || (category === 'AI Tools' ? ['zerobudget-ai', 'speech-generator'].includes(p.id) : category === 'Creative' ? p.id === 'muse-flow' : ['menu-snap','hermes-x402'].includes(p.id));
@@ -35,9 +41,25 @@ function PreviewDashboard() {
   const close = () => setMobileOpen(false);
   useEffect(() => {
     if (!selectedSolution) return;
-    const onEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSelectedSolution(null); };
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
+    const panel = detailRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panel?.querySelector<HTMLButtonElement>('.sc-detail-close')?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setSelectedSolution(null); return; }
+      if (event.key !== 'Tab' || !panel) return;
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+      if (!focusable.length) { event.preventDefault(); return; }
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      openerRef.current?.focus();
+    };
   }, [selectedSolution]);
   return <main className="sc-shell sc-preview">
     <aside className={`sc-sidebar ${mobileOpen ? 'is-open' : ''}`} aria-label="Main navigation">
@@ -78,13 +100,13 @@ function PreviewDashboard() {
         <section id="solutions" className="sc-section">
           <div className="sc-section-header"><div><span className="sc-section-kicker">DISCOVER WHAT'S POSSIBLE</span><h2>Solutions for your ideas</h2><p>Find the tools that fit your needs.</p></div><span className="sc-section-count">Explore 5 solutions</span></div>
           <div className="sc-discovery-tools"><label className="sc-search"><Search size={18} aria-hidden="true"/><span className="sr-only">Search solutions</span><input type="search" placeholder="Search solutions..." autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} /></label><div className="sc-filters" role="group" aria-label="Filter solutions">{categories.map(c=><button type="button" key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div></div>
-          <div className="sc-products">{visible.map(p=>{const Icon=p.icon;return <article key={p.id} className="sc-product"><div className={`sc-product-art art-${p.color}`}><span className="sc-product-glyph"><Icon size={34} strokeWidth={1.7}/></span><span className="sc-art-orb"/></div><div className="sc-product-info"><span className="sc-product-tag">{p.tag}</span><h3>{p.name}</h3><strong>{p.tagline}</strong><p>{p.description}</p><span className="sc-product-bottom"><span><span className="sc-mini-dot"/> Coming soon</span><button type="button" className="sc-arrow-icon" aria-label={`Explore ${p.name} details`} onClick={()=>setSelectedSolution(p)}><ArrowUpRight size={19}/></button></span></div></article>})}</div>
+          <div className="sc-products">{visible.map(p=>{const Icon=p.icon;return <article key={p.id} className="sc-product"><div className={`sc-product-art art-${p.color}`}><span className="sc-product-glyph"><Icon size={34} strokeWidth={1.7}/></span><span className="sc-art-orb"/></div><div className="sc-product-info"><span className="sc-product-tag">{p.tag}</span><h3>{p.name}</h3><strong>{p.tagline}</strong><p>{p.description}</p><span className="sc-product-bottom"><span><span className="sc-mini-dot"/> Coming soon</span><button type="button" className="sc-arrow-icon" aria-label={`Explore ${p.name} details`} onClick={e=>openDetails(p, e.currentTarget)}><ArrowUpRight size={19}/></button></span></div></article>})}</div>
           {visible.length === 0 && <div className="sc-empty" role="status"><Search size={25}/><strong>No matching solutions</strong><p>Try another search term or explore all categories.</p><button type="button" onClick={()=>{setQuery('');setCategory('All');}}>Clear filters</button></div>}
           <p className="sc-catalog-note"><ShieldCheck size={16}/> These are informational solution cards, not products available for purchase. Prices and availability are not displayed.</p>
         </section>
         <section className="sc-next-section" id="next-steps"><div className="sc-section-header"><div><span className="sc-section-kicker">WHAT'S NEXT?</span><h2>Simple steps, clear progress</h2><p>See what's available now and what's coming next.</p></div></div><div className="sc-steps">{steps.map(s=><article className="sc-step" key={s.number}><span className="sc-step-no">{s.number}</span><div><h3>{s.title}</h3><p>{s.detail}</p><span className="sc-step-status">{s.status}</span></div><ChevronRight size={18}/></article>)}</div></section>
         <section id="information" className="sc-disclaimer"><div className="sc-disclaimer-icon"><LockKeyhole size={22}/></div><div><strong>Preview mode · No active storefront</strong><p>Sign-in, purchases, Shopify webhooks, and license delivery are disabled. Do not enter passwords or payment information. This preview is not connected to the original Shopify store.</p></div></section>
-        {selectedSolution && <div className="sc-detail-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedSolution(null);}}><section className="sc-detail-panel" role="dialog" aria-modal="true" aria-labelledby="sc-detail-title"><button type="button" className="sc-detail-close" onClick={()=>setSelectedSolution(null)} aria-label="Close solution details"><X size={20}/></button><span className="sc-section-kicker">SOLUTION OVERVIEW</span><div className={`sc-detail-icon art-${selectedSolution.color}`}>{(() => {const Icon=selectedSolution.icon;return <Icon size={35}/>;})()}</div><span className="sc-product-tag">{selectedSolution.tag}</span><h2 id="sc-detail-title">{selectedSolution.name}</h2><h3>{selectedSolution.tagline}</h3><p>{selectedSolution.description}</p><div className="sc-detail-notice"><ShieldCheck size={18}/><span>Informational preview only. This solution is not available for purchase or activation here.</span></div><button type="button" className="sc-detail-done" onClick={()=>setSelectedSolution(null)}>Back to solutions <ArrowRight size={16}/></button></section></div>}
+        {selectedSolution && <div className="sc-detail-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedSolution(null);}}><section ref={detailRef} className="sc-detail-panel" role="dialog" aria-modal="true" aria-labelledby="sc-detail-title"><button type="button" className="sc-detail-close" onClick={()=>setSelectedSolution(null)} aria-label="Close solution details"><X size={20}/></button><span className="sc-section-kicker">SOLUTION OVERVIEW</span><div className={`sc-detail-icon art-${selectedSolution.color}`}>{(() => {const Icon=selectedSolution.icon;return <Icon size={35}/>;})()}</div><span className="sc-product-tag">{selectedSolution.tag}</span><h2 id="sc-detail-title">{selectedSolution.name}</h2><h3>{selectedSolution.tagline}</h3><p>{selectedSolution.description}</p><div className="sc-detail-notice"><ShieldCheck size={18}/><span>Informational preview only. This solution is not available for purchase or activation here.</span></div><button type="button" className="sc-detail-done" onClick={()=>setSelectedSolution(null)}>Back to solutions <ArrowRight size={16}/></button></section></div>}
         <footer className="sc-footer"><span>© SaleCentar · We Do Care Global</span><span>Designed to feel effortless. <BadgeCheck size={15}/></span></footer>
       </div>
     </div>
