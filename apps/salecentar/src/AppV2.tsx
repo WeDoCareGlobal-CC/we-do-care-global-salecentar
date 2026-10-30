@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, Search, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
 const previewOnly = import.meta.env.VITE_SALECENTAR_PREVIEW_ONLY === '1';
@@ -143,7 +144,7 @@ export default function AppV2() {
     catch {setMessage('Sign-out failed.');}
     finally {setBusy(false);}
   }
-  if (previewOnly) return <main className="sc-preview-root"><PreviewDashboard/></main>;
+  if (previewOnly) return <main className="sc-preview-root"><PreviewDashboard/><Analytics /></main>;
   return <main className="min-h-screen bg-[#061715] text-[#f7f1e7]">
     <div className="mx-auto max-w-6xl px-5 py-10">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
@@ -169,5 +170,6 @@ export default function AppV2() {
         </section>}
       {message&&<p role="alert" className="mt-6 rounded-xl border border-amber-300/30 p-4 text-amber-200">{message}</p>}
     </div>
+    <Analytics />
   </main>;
 }
