@@ -148,8 +148,9 @@ const server=http.createServer(async(req,res)=>{
    const data=JSON.parse((await read(req)).toString('utf8'));
    if(!/^[0-9a-f-]{36}$/i.test(data?.user_id||'')||!moduleIds.has(data?.module_id)||typeof data?.enabled!=='boolean')
     return respond(res,400,{error:'Invalid entitlement'});
-   const q=await pool.query(`INSERT INTO sc_module_entitlements(user_id,module_id,enabled)
-    VALUES($1,$2,$3) ON CONFLICT(user_id,module_id) DO UPDATE SET enabled=excluded.enabled,updated_at=now()
+   const q=await pool.query(`INSERT INTO sc_module_entitlements(user_id,module_id,enabled,provisioning_source)
+    VALUES($1,$2,$3,'manual') ON CONFLICT(user_id,module_id)
+    DO UPDATE SET enabled=excluded.enabled,provisioning_source='manual',updated_at=now()
     RETURNING user_id,module_id,enabled`,[data.user_id,data.module_id,data.enabled]);
    return respond(res,200,{entitlement:q.rows[0]});
   }
