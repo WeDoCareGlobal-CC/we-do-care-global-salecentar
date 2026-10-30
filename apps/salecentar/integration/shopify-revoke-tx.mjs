@@ -24,7 +24,7 @@ export async function revokeIneligibleOrder({pool,orderId}) {
     if(!Number.isFinite(checkedAt)||checkedAt>Date.now()||Date.now()-checkedAt>300000)
       throw Error('Fresh Shopify reconciliation required');
     if(review.rowCount!==1 || review.rows[0].verified!==false ||
-        !['cancelled','not_fully_paid','no_eligible_lines'].includes(review.rows[0].reason))
+        !['cancelled','refunded'].includes(review.rows[0].reason))
       throw Error('Authoritative ineligible review required');
     const grants=await client.query(`
       UPDATE sc_shopify_grants
