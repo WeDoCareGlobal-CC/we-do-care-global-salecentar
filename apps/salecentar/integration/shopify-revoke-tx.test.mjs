@@ -50,3 +50,19 @@ test('stale review cannot revoke access',async()=>{
  await assert.rejects(revokeIneligibleOrder({pool,orderId}),/Fresh Shopify reconciliation required/);
  assert(!log.some(x=>x.q.includes('UPDATE sc_module_entitlements')));
 });
+
+test('partial refund never revokes entire order without item-level reconciliation',async()=>{
+ const {pool,log}=db({reason:'partial_refund_requires_line_review'});
+ await assert.rejects(revokeIneligibleOrder({pool,orderId}),/ineligible review required/);
+ assert(!log.some(x=>x.q.includes('UPDATE sc_shopify_grants')));
+});
+test('payment pending is not proof of full refund and cannot revoke',async()=>{
+ const {pool,log}=db({reason:'not_fully_paid'});
+ await assert.rejects(revokeIneligibleOrder({pool,orderId}),/ineligible review required/);
+ assert(!log.some(x=>x.q.includes('UPDATE sc_shopify_grants')));
+});
+test('full refund is eligible for revocation when freshly verified',async()=>{
+ const {pool}=db({reason:'refunded'});
+ const r=await revokeIneligibleOrder({pool,orderId});
+ assert.equal(r.revoked,1);
+});
