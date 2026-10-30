@@ -21,6 +21,10 @@ export function evaluateShopifyOrder(order, expectedOrderId, approvedVariants) {
   if (!ORDER_ID.test(expectedOrderId) || order?.id !== expectedOrderId)
     return { verified: false, reason: 'order_mismatch' };
   if (order.cancelledAt != null) return { verified: false, reason: 'cancelled' };
+  if (order.displayFinancialStatus === 'PARTIALLY_REFUNDED')
+    return { verified: false, reason: 'partial_refund_requires_line_review' };
+  if (order.displayFinancialStatus === 'REFUNDED')
+    return { verified: false, reason: 'refunded' };
   if (order.displayFinancialStatus !== 'PAID')
     return { verified: false, reason: 'not_fully_paid' };
   if (!/^gid:\/\/shopify\/Customer\/[1-9][0-9]*$/.test(order.customer?.id || ''))
