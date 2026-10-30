@@ -15,6 +15,7 @@ function db({verified=false,reason='cancelled',other=false}={}){
 test('unpaid or cancelled verified review revokes access when no other grant',async()=>{
  const {pool,log}=db();const r=await revokeIneligibleOrder({pool,orderId});
  assert.equal(r.revoked,1);assert(log.some(x=>x.q.includes('UPDATE sc_module_entitlements')));
+ assert(log.some(x=>x.q.includes('pg_advisory_xact_lock')));
  assert(log.some(x=>x.q==='COMMIT'));
 });
 test('other active purchase preserves entitlement',async()=>{
