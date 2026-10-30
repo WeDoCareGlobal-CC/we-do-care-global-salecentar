@@ -35,6 +35,8 @@ export async function revokeIneligibleOrder({pool,orderId}) {
     const affected=new Set(grants.rows.map(x=>`${x.user_id}|${x.module_id}`));
     for(const key of affected) {
       const [userId,moduleId]=key.split('|');
+      // Serialize with grants for the same user/module to avoid lost access updates.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[userId+':'+moduleId]);
       const other=await client.query(`
         SELECT 1 FROM sc_shopify_grants
         WHERE shop=$1 AND user_id=$2 AND module_id=$3 AND revoked_at IS NULL
