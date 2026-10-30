@@ -5,6 +5,7 @@ import {
   Activity, Bot, CreditCard, Download, Globe2, LayoutDashboard, LogOut,
   Menu, Search, ShieldCheck, Sparkles, Store, Wallet, Webhook, X
 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 const OWNER = 'emirperla96@gmail.com';
 const products = productCatalog.products.map(p => ({
@@ -154,6 +155,7 @@ function App() {
           </div>
         </main>
       </div>
+      <Analytics />
     </div>
   );
 }
