@@ -7,7 +7,7 @@ const ORDER_QUERY = `query SaleCentarOrderVerification($id: ID!) {
     displayFinancialStatus
     customer { id }
     lineItems(first: 100) {
-      nodes { quantity variant { id } }
+      nodes { quantity variant { id } sellingPlan { name } priceAfterAllDiscountsBeforeTaxesSet { shopMoney { amount currencyCode } } }
       pageInfo { hasNextPage }
     }
   }
@@ -37,6 +37,10 @@ export function evaluateShopifyOrder(order, expectedOrderId, approvedVariants) {
     return { verified: false, reason: 'missing_approved_variants' };
   const permitted = connection.nodes.filter(line =>
     Number.isSafeInteger(line.quantity) && line.quantity > 0 &&
+    line.sellingPlan === null &&
+    line.priceAfterAllDiscountsBeforeTaxesSet?.shopMoney?.currencyCode === 'BAM' &&
+    /^\\d+(?:\\.\\d+)?$/.test(String(line.priceAfterAllDiscountsBeforeTaxesSet?.shopMoney?.amount ?? '')) &&
+    Number(line.priceAfterAllDiscountsBeforeTaxesSet.shopMoney.amount) > 0 &&
     VARIANT_ID.test(line.variant?.id || '') && approvedVariants.has(line.variant.id)
   ).map(line => ({ variantId: line.variant.id, quantity: line.quantity }));
   if (!permitted.length) return { verified: false, reason: 'no_eligible_lines' };
