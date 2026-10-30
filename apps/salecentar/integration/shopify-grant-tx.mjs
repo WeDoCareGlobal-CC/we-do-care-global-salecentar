@@ -1,6 +1,7 @@
 import { entitlementDecision } from './shopify-access-policy.mjs';
 
 export const SHOPIFY_GRANT_DDL = `
+ALTER TABLE sc_module_entitlements ADD COLUMN IF NOT EXISTS provisioning_source TEXT NOT NULL DEFAULT 'manual';
 CREATE TABLE IF NOT EXISTS sc_shopify_customer_links (
   shop TEXT NOT NULL CHECK (shop='k0702i-dq.myshopify.com'),
   customer_id TEXT NOT NULL,
@@ -65,11 +66,17 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
       ON CONFLICT DO NOTHING RETURNING order_id
     `,[orderId,variantId,row.user_id,moduleId]);
     if(inserted.rowCount!==1)throw Error('Grant already processed');
-    await client.query(`
-      INSERT INTO sc_module_entitlements(user_id,module_id,enabled,updated_at)
-      VALUES($1,$2,true,now())
-      ON CONFLICT(user_id,module_id) DO UPDATE SET enabled=true,updated_at=now()
+    const entitlementWrite=await client.query(`
+      INSERT INTO sc_module_entitlements(user_id,module_id,enabled,provisioning_source,updated_at)
+      VALUES($1,$2,true,'shopify',now())
+      ON CONFLICT(user_id,module_id) DO UPDATE
+      SET enabled=true,provisioning_source='shopify',updated_at=now()
+      WHERE sc_module_entitlements.provisioning_source='shopify'
+         OR sc_module_entitlements.enabled=false
+      RETURNING user_id
     `,[row.user_id,moduleId]);
+    if(entitlementWrite.rowCount!==1)
+      throw Error('Existing independently managed entitlement must not be overwritten');
     await client.query('COMMIT');
     return {granted:true,userId:row.user_id,moduleId,orderId};
   } catch(error) {
