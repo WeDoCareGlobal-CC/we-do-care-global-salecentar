@@ -21,7 +21,11 @@ CREATE TABLE IF NOT EXISTS sc_shopify_grants (
 `;
 
 // Trusted internal worker only. Does NOT generate identity proofs or trust webhook claims.
-export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId,enforcedModules}) {
+export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId,enforcedModules,approvedOffers,maxReviewAgeMs=300000}) {
+  if (!(approvedOffers instanceof Map) || approvedOffers.get(variantId)!==moduleId)
+    throw Error('Variant-to-module mapping not verified');
+  if (!Number.isInteger(maxReviewAgeMs) || maxReviewAgeMs<1 || maxReviewAgeMs>300000)
+    throw Error('Invalid review freshness policy');
   if (!(enforcedModules instanceof Set) || !enforcedModules.has(moduleId))
     throw Error('Module access enforcement not verified');
   if (!pool?.connect) throw Error('Database unavailable');
@@ -29,7 +33,7 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
   try {
     await client.query('BEGIN');
     const res=await client.query(`
-      SELECT r.order_id,r.customer_id,r.verified,r.reason,r.eligible_lines,
+      SELECT r.order_id,r.customer_id,r.verified,r.reason,r.eligible_lines,r.checked_at,
         l.user_id,l.verified_at,u.active
       FROM sc_shopify_order_reviews r
       LEFT JOIN sc_shopify_customer_links l ON l.shop=r.shop AND l.customer_id=r.customer_id
@@ -40,6 +44,9 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
     if(res.rowCount!==1)throw Error('Verified review not found');
     const row=res.rows[0];
     if(!row.active||!row.verified_at)throw Error('Customer not linked to active account');
+    const checkedAt=Date.parse(row.checked_at);
+    if(!Number.isFinite(checkedAt)||checkedAt>Date.now()||Date.now()-checkedAt>maxReviewAgeMs)
+      throw Error('Fresh Shopify payment reconciliation required');
     const existing=await client.query(`
       SELECT order_id,variant_id FROM sc_shopify_grants
       WHERE shop='k0702i-dq.myshopify.com' AND order_id=$1 AND variant_id=$2 FOR UPDATE
