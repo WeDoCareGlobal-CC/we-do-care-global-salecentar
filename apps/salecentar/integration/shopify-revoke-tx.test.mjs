@@ -7,6 +7,7 @@ function db({verified=false,reason='cancelled',other=false}={}){
  return {log,pool:{connect:async()=>({query:async(q,args)=>{
   log.push({q,args});
   if(q.includes('FROM sc_shopify_order_reviews'))return {rowCount:1,rows:[{verified,reason,checked_at:new Date().toISOString()}]};
+  if(q.includes('SELECT DISTINCT user_id,module_id FROM sc_shopify_grants'))return {rowCount:1,rows:[{user_id:user,module_id:'muse-flow'}]};
   if(q.includes('UPDATE sc_shopify_grants'))return {rowCount:1,rows:[{user_id:user,module_id:'muse-flow'}]};
   if(q.includes('SELECT 1 FROM sc_shopify_grants'))return {rowCount:other?1:0,rows:[]};
   return {rowCount:1,rows:[]};
@@ -66,4 +67,15 @@ test('full refund is eligible for revocation when freshly verified',async()=>{
  const {pool}=db({reason:'refunded'});
  const r=await revokeIneligibleOrder({pool,orderId});
  assert.equal(r.revoked,1);
+});
+
+test('module lock is acquired before grant updates and entitlement changes',async()=>{
+ const {pool,log}=db({reason:'refunded'});
+ await revokeIneligibleOrder({pool,orderId});
+ const lockIndex=log.findIndex(x=>x.q.includes('pg_advisory_xact_lock'));
+ const writeIndex=log.findIndex(x=>x.q.includes('UPDATE sc_shopify_grants'));
+ const entitlementIndex=log.findIndex(x=>x.q.includes('UPDATE sc_module_entitlements'));
+ assert(lockIndex>=0);
+ assert(writeIndex>lockIndex);
+ assert(entitlementIndex>writeIndex);
 });
