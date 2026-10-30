@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS sc_shopify_grants (
 `;
 
 // Trusted internal worker only. Does NOT generate identity proofs or trust webhook claims.
-export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId}) {
+export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId,enforcedModules}) {
+  if (!(enforcedModules instanceof Set) || !enforcedModules.has(moduleId))
+    throw Error('Module access enforcement not verified');
   if (!pool?.connect) throw Error('Database unavailable');
   const client=await pool.connect();
   try {
@@ -46,7 +48,7 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
       review:{verified:row.verified,reason:row.reason,orderId:row.order_id,
         customerId:row.customer_id,lines:row.eligible_lines},
       identity:{verified:true,userId:row.user_id,shopifyCustomerId:row.customer_id},
-      offer:{kind:'one_time',variantId,moduleId,moduleEnforcesAccess:true},
+      offer:{kind:'one_time',variantId,moduleId,moduleEnforcesAccess:enforcedModules.has(moduleId)},
       previousGrant:existing.rowCount?{orderId:existing.rows[0].order_id,variantId:existing.rows[0].variant_id}:null
     });
     if(!decision.allow)throw Error('Access denied: '+decision.reason);
