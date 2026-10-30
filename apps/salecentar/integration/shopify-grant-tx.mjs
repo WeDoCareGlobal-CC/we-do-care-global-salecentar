@@ -74,6 +74,8 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
       previousGrant:existing.rowCount?{orderId:existing.rows[0].order_id,variantId:existing.rows[0].variant_id}:null
     });
     if(!decision.allow)throw Error('Access denied: '+decision.reason);
+    // Coordinate grants and revocations across different orders of the same module.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[row.user_id+':'+moduleId]);
     const inserted=await client.query(`
       INSERT INTO sc_shopify_grants(shop,order_id,variant_id,user_id,module_id)
       VALUES('k0702i-dq.myshopify.com',$1,$2,$3,$4)
