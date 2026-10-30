@@ -1,3 +1,7 @@
+import { SHOPIFY_REVIEWS_DDL } from './shopify-order-review.mjs';
+import { SHOPIFY_GRANT_DDL } from './shopify-grant-tx.mjs';
+import { SHOPIFY_REVOCATION_DDL } from './shopify-revoke-tx.mjs';
+import { SHOPIFY_INBOX_DDL, recordShopifyWebhook } from './shopify-webhook-inbox.mjs';
 import { sessionCookies, clearSessionCookies, createSessionToken, createCsrfToken, resolveV2Session, validCsrf, validSameOrigin, parseCookies, hashV2Token, v2SessionCookieName } from './v2-session.mjs';
 import http from 'node:http';
 import {validateHermesSettlement,sameHermesSettlement,classifyHermesBalances} from './hermes-policy.mjs';
@@ -10,6 +14,8 @@ const keys={'menu-snap':process.env.SALECENTAR_MENU_SNAP_SECRET,'zerobudget-ai':
 const museAuthSecret=process.env.SALECENTAR_MUSE_FLOW_SECRET;
 const speechAuthSecret=process.env.SALECENTAR_SPEECH_GENERATOR_SECRET;
 const hermesAuthSecret=process.env.SALECENTAR_HERMES_SECRET;
+const shopifyWebhookSecret=process.env.SALECENTAR_SHOPIFY_WEBHOOK_SECRET;
+if(shopifyWebhookSecret && shopifyWebhookSecret.length<32) throw Error('Invalid Shopify webhook secret length');
 const adminToken=process.env.SALECENTAR_ADMIN_TOKEN;
 const databaseUrl=process.env.SALECENTAR_DATABASE_URL;
 if(Object.values(keys).some(v=>!v||v.length<32)||keys['menu-snap']===keys['zerobudget-ai']||(process.env.SALECENTAR_ALLOW_LEGACY_ADMIN==='true'&&(!adminToken||adminToken.length<32))||!databaseUrl)
@@ -46,11 +52,18 @@ await pool.query(`CREATE TABLE IF NOT EXISTS sc_module_entitlements(
  module_id TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT false,
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  PRIMARY KEY(user_id,module_id))`);
+await pool.query(`ALTER TABLE sc_module_entitlements ADD COLUMN IF NOT EXISTS provisioning_source TEXT NOT NULL DEFAULT 'manual'`);
 await pool.query(`CREATE TABLE IF NOT EXISTS sc_speech_usage(
  request_id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES sc_users(id) ON DELETE CASCADE,
  day DATE NOT NULL, status TEXT NOT NULL CHECK(status IN ('reserved','succeeded','failed')),
  characters INTEGER NOT NULL CHECK(characters BETWEEN 1 AND 3000),
  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), finished_at TIMESTAMPTZ)`);
+if(shopifyWebhookSecret) {
+ await pool.query(SHOPIFY_INBOX_DDL);
+ await pool.query(SHOPIFY_REVIEWS_DDL);
+ await pool.query(SHOPIFY_GRANT_DDL);
+ await pool.query(SHOPIFY_REVOCATION_DDL);
+}
 const moduleIds=new Set(['menu-snap','zerobudget-ai','muse-flow','hermes-x402','speech-generator']);
 const speechLimit=Number(process.env.SPEECH_DAILY_LIMIT||20);
 if(!Number.isInteger(speechLimit)||speechLimit<1||speechLimit>100000)throw Error('Invalid SPEECH_DAILY_LIMIT');
@@ -77,6 +90,17 @@ const loginAttempts=new Map();
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');
+  if(req.method==='POST'&&url.pathname==='/webhooks/shopify'){
+   if(!shopifyWebhookSecret)return respond(res,503,{error:'Shopify webhook receiver disabled'});
+   const raw=await read(req);
+   try{
+    const result=await recordShopifyWebhook(pool,req.headers,raw,shopifyWebhookSecret);
+    return respond(res,200,result);
+   }catch(error){
+    const status=[400,401,403].includes(error.status)?error.status:500;
+    return respond(res,status,{error:status===500?'Webhook processing unavailable':'Webhook rejected'});
+   }
+  }
   if(req.method==='POST'&&url.pathname==='/sync/hermes'){
    const secret=process.env.SALECENTAR_HERMES_SECRET;
    if(!secret||secret.length<32)return respond(res,503,{error:'Hermes integration disabled'});
@@ -125,8 +149,9 @@ const server=http.createServer(async(req,res)=>{
    const data=JSON.parse((await read(req)).toString('utf8'));
    if(!/^[0-9a-f-]{36}$/i.test(data?.user_id||'')||!moduleIds.has(data?.module_id)||typeof data?.enabled!=='boolean')
     return respond(res,400,{error:'Invalid entitlement'});
-   const q=await pool.query(`INSERT INTO sc_module_entitlements(user_id,module_id,enabled)
-    VALUES($1,$2,$3) ON CONFLICT(user_id,module_id) DO UPDATE SET enabled=excluded.enabled,updated_at=now()
+   const q=await pool.query(`INSERT INTO sc_module_entitlements(user_id,module_id,enabled,provisioning_source)
+    VALUES($1,$2,$3,'manual') ON CONFLICT(user_id,module_id)
+    DO UPDATE SET enabled=excluded.enabled,provisioning_source='manual',updated_at=now()
     RETURNING user_id,module_id,enabled`,[data.user_id,data.module_id,data.enabled]);
    return respond(res,200,{entitlement:q.rows[0]});
   }

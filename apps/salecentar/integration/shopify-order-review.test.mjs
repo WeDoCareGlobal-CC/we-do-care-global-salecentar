@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { reviewShopifyOrder, orderIdFromPaidWebhook } from './shopify-order-review.mjs';
+
+const id='gid://shopify/Order/456';
+const variant='gid://shopify/ProductVariant/777';
+const paid={id,cancelledAt:null,test:false,displayFinancialStatus:'PAID',
+ customer:{id:'gid://shopify/Customer/99'},
+ lineItems:{nodes:[{quantity:2,variant:{id:variant},sellingPlan:null,priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39.00',currencyCode:'BAM'}}}],pageInfo:{hasNextPage:false}}
+};
+function fakeFetch(order) {
+ return async()=>({ok:true,json:async()=>({data:{order}})});
+}
+test('paid order review is recorded, but grants nothing',async()=>{
+ const writes=[];
+ const pool={query:async(sql,args)=>{writes.push(args);return {rowCount:1};}};
+ const x=await reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+  approvedVariants:new Set([variant]),fetchImpl:fakeFetch(paid),pool});
+ assert.equal(x.verified,true);
+ assert.equal(x.grantsCreated,0);
+ assert.equal(writes.length,1);
+ assert.equal(writes[0][0],'k0702i-dq.myshopify.com');
+ assert.deepEqual(JSON.parse(writes[0][5]),[{variantId:variant,quantity:2}]);
+});
+test('cancelled order writes revoked review state',async()=>{
+ const writes=[];
+ const pool={query:async(_sql,args)=>{writes.push(args);return {rowCount:1};}};
+ const x=await reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+  approvedVariants:new Set([variant]),fetchImpl:fakeFetch({...paid,cancelledAt:'2026-10-30T00:00:00Z'}),pool});
+ assert.equal(x.verified,false);
+ assert.equal(writes[0][3],false);
+ assert.deepEqual(JSON.parse(writes[0][5]),[]);
+ assert.equal(writes[0][2],null);
+});
+test('network or Shopify API error prevents database writes',async()=>{
+ let writes=0;
+ await assert.rejects(reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+   approvedVariants:new Set([variant]),fetchImpl:async()=>({ok:false}),pool:{query:async()=>{writes++;}}}),/unavailable/);
+ assert.equal(writes,0);
+});
+test('only orders/paid on new store may enqueue paid-order review',()=>{
+ assert.equal(orderIdFromPaidWebhook({shop:'k0702i-dq.myshopify.com',
+  topic:'orders/paid',payload:{id:456}}),id);
+ assert.equal(orderIdFromPaidWebhook({shop:'s91wj7-dq.myshopify.com',
+  topic:'orders/paid',payload:{id:456}}),null);
+ assert.equal(orderIdFromPaidWebhook({shop:'k0702i-dq.myshopify.com',
+  topic:'refunds/create',payload:{id:456}}),null);
+});
+
+test('review timestamp is captured before Admin API and stale responses cannot overwrite newer state',async()=>{
+ let resolveShopify;
+ const api=new Promise(resolve=>{resolveShopify=resolve;});
+ let query;
+ const pool={query:async(sql,args)=>{query={sql,args};return {rowCount:1};}};
+ const pending=reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+   approvedVariants:new Set([variant]),fetchImpl:async()=>api,pool});
+ await new Promise(resolve=>setImmediate(resolve));
+ const firstSeenAt=Date.now();
+ resolveShopify(fakeFetch(paid)());
+ await pending;
+ assert(query.sql.includes('WHERE sc_shopify_order_reviews.checked_at < EXCLUDED.checked_at'));
+ assert(query.sql.includes('checked_at=EXCLUDED.checked_at'));
+ assert.equal(query.args.length,7);
+ assert(Number.isFinite(Date.parse(query.args[6])));
+ assert(Date.parse(query.args[6])<=firstSeenAt);
+});
+
+test('superseded Shopify response never reports verified success',async()=>{
+ const pool={query:async(sql,args)=>{
+  assert.match(sql,/WHERE sc_shopify_order_reviews.checked_at < EXCLUDED.checked_at/);
+  assert.match(sql,/RETURNING order_id/);
+  return {rowCount:0,rows:[]};
+ }};
+ const result=await reviewShopifyOrder({orderId:id,accessToken:'mock-admin-token-length-123456',
+  approvedVariants:new Set([variant]),fetchImpl:fakeFetch(paid),pool});
+ assert.deepEqual(result,{orderId:id,verified:false,reason:'superseded_by_newer_review',grantsCreated:0});
+});

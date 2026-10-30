@@ -1,0 +1,18 @@
+name: SaleCentar runner provisioning probe
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/github-actions-runner-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 3
+    steps:
+      - name: Confirm job execution
+        run: |
+          echo "Runner started"
+          uname -a
+          node --version

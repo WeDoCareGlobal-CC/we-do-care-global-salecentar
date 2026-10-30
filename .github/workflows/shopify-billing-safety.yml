@@ -1,0 +1,24 @@
+name: SaleCentar Shopify billing safety
+on:
+  pull_request:
+    paths:
+      - 'apps/salecentar/integration/shopify-*.mjs'
+      - 'apps/salecentar/integration/server.mjs'
+      - 'apps/salecentar/integration/check-shopify.sh'
+      - '.github/workflows/shopify-billing-safety.yml'
+  workflow_dispatch:
+jobs:
+  billing-safety:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/salecentar/integration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and Shopify billing security checks
+        run: bash check-shopify.sh

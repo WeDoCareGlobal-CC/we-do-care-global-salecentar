@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -45,7 +45,7 @@ jobs:
           node scripts/release-audit.mjs
           node --test scripts/release-audit.test.mjs
   module-builds:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
           test -s dist/server.mjs
           node --check dist/server.mjs
   salecentar-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
       - run: npm run build
         working-directory: apps/salecentar
   hermes-security-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -104,7 +104,7 @@ jobs:
         working-directory: apps/hermes-x402
 
   speech-generator-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
