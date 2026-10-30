@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, AudioLines, BadgeCheck, Bot, ChevronRight, CircleHelp, Compass, FileCheck2, LayoutGrid, LockKeyhole, Menu, Mic2, Search, ShieldCheck, Sparkles, WandSparkles, Workflow, X } from 'lucide-react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
 const previewOnly = import.meta.env.VITE_SALECENTAR_PREVIEW_ONLY === '1';
@@ -23,9 +23,14 @@ function BrandMark() {
 }
 function PreviewDashboard() {
   const [category, setCategory] = useState('All');
+  const [query, setQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const categories = ['All', 'AI Tools', 'Creative', 'Business'];
-  const visible = showcase.filter(p => category === 'All' || (category === 'AI Tools' ? ['zerobudget-ai', 'speech-generator'].includes(p.id) : category === 'Creative' ? p.id === 'muse-flow' : ['menu-snap','hermes-x402'].includes(p.id)));
+  const visible = showcase.filter(p => {
+    const matchesCategory = category === 'All' || (category === 'AI Tools' ? ['zerobudget-ai', 'speech-generator'].includes(p.id) : category === 'Creative' ? p.id === 'muse-flow' : ['menu-snap','hermes-x402'].includes(p.id));
+    const searchText = [p.name, p.tagline, p.description, p.tag].join(' ').toLocaleLowerCase('en');
+    return matchesCategory && searchText.includes(query.trim().toLocaleLowerCase('en'));
+  });
   const close = () => setMobileOpen(false);
   return <main className="sc-shell sc-preview">
     <aside className={`sc-sidebar ${mobileOpen ? 'is-open' : ''}`} aria-label="Main navigation">
@@ -65,8 +70,9 @@ function PreviewDashboard() {
         </div>
         <section id="solutions" className="sc-section">
           <div className="sc-section-header"><div><span className="sc-section-kicker">DISCOVER WHAT'S POSSIBLE</span><h2>Solutions for your ideas</h2><p>Find the tools that fit your needs.</p></div><span className="sc-section-count">Explore 5 solutions</span></div>
-          <div className="sc-filters" role="group" aria-label="Filter solutions">{categories.map(c=><button type="button" key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
+          <div className="sc-discovery-tools"><label className="sc-search"><Search size={18} aria-hidden="true"/><span className="sr-only">Search solutions</span><input type="search" placeholder="Search solutions..." autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} /></label><div className="sc-filters" role="group" aria-label="Filter solutions">{categories.map(c=><button type="button" key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div></div>
           <div className="sc-products">{visible.map(p=>{const Icon=p.icon;return <article key={p.id} className="sc-product"><div className={`sc-product-art art-${p.color}`}><span className="sc-product-glyph"><Icon size={34} strokeWidth={1.7}/></span><span className="sc-art-orb"/></div><div className="sc-product-info"><span className="sc-product-tag">{p.tag}</span><h3>{p.name}</h3><strong>{p.tagline}</strong><p>{p.description}</p><span className="sc-product-bottom"><span><span className="sc-mini-dot"/> Coming soon</span><span className="sc-arrow-icon" aria-label="Informational preview"><ArrowUpRight size={19}/></span></span></div></article>})}</div>
+          {visible.length === 0 && <div className="sc-empty" role="status"><Search size={25}/><strong>No matching solutions</strong><p>Try another search term or explore all categories.</p><button type="button" onClick={()=>{setQuery('');setCategory('All');}}>Clear filters</button></div>}
           <p className="sc-catalog-note"><ShieldCheck size={16}/> These are informational solution cards, not products available for purchase. Prices and availability are not displayed.</p>
         </section>
         <section className="sc-next-section" id="next-steps"><div className="sc-section-header"><div><span className="sc-section-kicker">WHAT'S NEXT?</span><h2>Simple steps, clear progress</h2><p>See what's available now and what's coming next.</p></div></div><div className="sc-steps">{steps.map(s=><article className="sc-step" key={s.number}><span className="sc-step-no">{s.number}</span><div><h3>{s.title}</h3><p>{s.detail}</p><span className="sc-step-status">{s.status}</span></div><ChevronRight size={18}/></article>)}</div></section>
