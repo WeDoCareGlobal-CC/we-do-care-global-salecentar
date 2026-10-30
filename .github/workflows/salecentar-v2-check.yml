@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 jobs:
   security:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +18,7 @@ jobs:
       - name: Server syntax check
         run: node --check apps/salecentar/integration/server.mjs
   standalone-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/salecentar
