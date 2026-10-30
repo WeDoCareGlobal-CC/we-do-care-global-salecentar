@@ -4,6 +4,7 @@ on:
     paths:
       - 'apps/salecentar/integration/shopify-*.mjs'
       - 'apps/salecentar/integration/server.mjs'
+      - 'apps/salecentar/integration/check-shopify.sh'
       - '.github/workflows/shopify-billing-safety.yml'
   workflow_dispatch:
 jobs:
@@ -19,15 +20,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Syntax-check server and Shopify modules
-        run: |
-          node --check server.mjs
-          node --check shopify-billing.mjs
-          node --check shopify-webhook-inbox.mjs
-          node --check shopify-order-reconcile.mjs
-          node --check shopify-order-review.mjs
-          node --check shopify-access-policy.mjs
-          node --check shopify-grant-tx.mjs
-          node --check shopify-revoke-tx.mjs
-      - name: Run Shopify billing security unit tests
-        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs shopify-order-reconcile.test.mjs shopify-order-review.test.mjs shopify-access-policy.test.mjs shopify-grant-tx.test.mjs shopify-revoke-tx.test.mjs
+      - name: Syntax and Shopify billing security checks
+        run: bash check-shopify.sh
