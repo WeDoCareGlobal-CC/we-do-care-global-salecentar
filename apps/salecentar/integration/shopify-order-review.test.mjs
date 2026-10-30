@@ -6,7 +6,7 @@ const id='gid://shopify/Order/456';
 const variant='gid://shopify/ProductVariant/777';
 const paid={id,cancelledAt:null,displayFinancialStatus:'PAID',
  customer:{id:'gid://shopify/Customer/99'},
- lineItems:{nodes:[{quantity:2,variant:{id:variant}}],pageInfo:{hasNextPage:false}}
+ lineItems:{nodes:[{quantity:2,variant:{id:variant},sellingPlan:null,priceAfterAllDiscountsBeforeTaxesSet:{shopMoney:{amount:'39.00',currencyCode:'BAM'}}}],pageInfo:{hasNextPage:false}}
 };
 function fakeFetch(order) {
  return async()=>({ok:true,json:async()=>({data:{order}})});
