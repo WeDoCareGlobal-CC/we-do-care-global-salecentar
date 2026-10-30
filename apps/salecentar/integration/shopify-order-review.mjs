@@ -21,6 +21,8 @@ export async function reviewShopifyOrder({
   orderId, pool, accessToken, approvedVariants, fetchImpl
 }) {
   if (!pool || typeof pool.query !== 'function') throw Error('PostgreSQL pool required');
+  // Capture before network I/O: late responses must not overwrite newer reviews.
+  const checkStartedAt = new Date();
   const order = await reconcileShopifyOrder({ orderId, accessToken, approvedVariants, fetchImpl });
   const lines = order.verified ? order.lines : [];
   const customerId = order.verified ? order.customerId : null;
@@ -28,14 +30,15 @@ export async function reviewShopifyOrder({
   await pool.query(`
     INSERT INTO sc_shopify_order_reviews
       (shop,order_id,customer_id,verified,reason,eligible_lines,checked_at)
-    VALUES ($1,$2,$3,$4,$5,$6::jsonb,now())
+    VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::timestamptz)
     ON CONFLICT (shop,order_id)
     DO UPDATE SET customer_id=EXCLUDED.customer_id,
       verified=EXCLUDED.verified,
       reason=EXCLUDED.reason,
       eligible_lines=EXCLUDED.eligible_lines,
-      checked_at=now()
-  `,[SHOP_DOMAIN,orderId,customerId,order.verified,reason,JSON.stringify(lines)]);
+      checked_at=EXCLUDED.checked_at
+    WHERE sc_shopify_order_reviews.checked_at <= EXCLUDED.checked_at
+  `,[SHOP_DOMAIN,orderId,customerId,order.verified,reason,JSON.stringify(lines),checkStartedAt.toISOString()]);
   return { orderId, verified:order.verified, reason, grantsCreated:0 };
 }
 
