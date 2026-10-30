@@ -22,7 +22,7 @@ test('Vercel exposes only read-only frontend; backend remains excluded', async (
 test('Legacy integration server is not a Vercel Function entrypoint', async () => {
   const source = await read('apps/salecentar/integration/server.mjs');
   assert.match(source, /export const handleRequest=async/);
-  assert.match(source, /fileURLToPath\\(import\\.meta\\.url\\)/);
+  assert.ok(source.includes('fileURLToPath(import.meta.url)'));
   assert.match(source, /await runMigrations/);
   const migrations = await read('apps/salecentar/integration/migrations.mjs');
   assert.match(migrations, /export async function runMigrations/);
