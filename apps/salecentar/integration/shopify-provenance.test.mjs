@@ -12,7 +12,7 @@ test('manual entitlement writes record manual provenance', async () => {
 });
 
 test('provenance migration is unconditional and runs before webhook schema', async () => {
-  const server = await read('server.mjs');
+  const server = await read('migrations.mjs');
   const migrate = server.indexOf("await pool.query(\`ALTER TABLE sc_module_entitlements ADD COLUMN IF NOT EXISTS provisioning_source");
   const webhook = server.indexOf('if(shopifyWebhookSecret) {');
   assert(migrate > 0 && webhook > migrate, 'Provenance column must exist even when Shopify disabled');

@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test --test-concurrency=1 test.mjs control.test.mjs central-sso.test.mjs muse-flow.test.mjs db.integration.test.mjs auth.db.integration.test.mjs release.test.mjs hermes-policy.test.mjs speech.db.integration.test.mjs user-deletion.db.integration.test.mjs shopify-postgres.integration.test.mjs",
-    "dashboard": "node dashboard.mjs"
+    "test": "node --test --test-concurrency=1 test.mjs control.test.mjs central-sso.test.mjs muse-flow.test.mjs db.integration.test.mjs auth.db.integration.test.mjs release.test.mjs hermes-policy.test.mjs speech.db.integration.test.mjs user-deletion.db.integration.test.mjs shopify-postgres.integration.test.mjs serverless-import.test.mjs",
+    "dashboard": "node dashboard.mjs",
+    "migrate": "node migrate.mjs"
   },
   "dependencies": {
     "pg": "^8.13.0"
