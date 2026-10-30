@@ -27,5 +27,6 @@ jobs:
           node --check shopify-order-reconcile.mjs
           node --check shopify-order-review.mjs
           node --check shopify-access-policy.mjs
+          node --check shopify-grant-tx.mjs
       - name: Run Shopify billing security unit tests
-        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs shopify-order-reconcile.test.mjs shopify-order-review.test.mjs shopify-access-policy.test.mjs
+        run: node --test shopify-billing.test.mjs shopify-webhook-inbox.test.mjs shopify-order-reconcile.test.mjs shopify-order-review.test.mjs shopify-access-policy.test.mjs shopify-grant-tx.test.mjs
