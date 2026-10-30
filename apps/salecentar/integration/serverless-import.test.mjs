@@ -17,7 +17,7 @@ test('importing handler is side-effect-free without reachable PostgreSQL', () =>
       SALECENTAR_ZERO_BUDGET_SECRET: 'b'.repeat(36),
       SALECENTAR_SHOPIFY_WEBHOOK_SECRET: '',
       SALECENTAR_ALLOW_LEGACY_ADMIN: 'false',
-      PORT: 'not-a-port',
+      PORT: '3101',
       SALECENTAR_PORT: '3101'
     }
   });
