@@ -23,8 +23,18 @@ export default async function handler(req, res) {
     return reject(res, 404, 'Not found');
   }
 
-  // Import only after allowlisting the request. This validates required
-  // staging configuration; it does not run schema migrations or bind a port.
-  const { handleRequest } = await import('../server.mjs');
-  return handleRequest(req, res);
+  // Liveness only: do not import the backend or query PostgreSQL.
+  // This must never be represented as commerce/database readiness.
+  res.writeHead(200, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.end(JSON.stringify({
+    ok: true,
+    component: 'salecentar-vercel-adapter',
+    check: 'liveness-only',
+    database: 'not-checked',
+    commerce: 'disabled',
+  }));
 }
