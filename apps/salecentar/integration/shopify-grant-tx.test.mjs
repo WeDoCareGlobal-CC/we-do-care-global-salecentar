@@ -21,6 +21,7 @@ function mockDb({entry=row,previous=false,failInsert=false,protectedManual=false
 test('verified linked one-time purchase grants transactionally',async()=>{
  const {pool,calls}=mockDb();const r=await grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow']),approvedOffers:new Map([[variantId,'muse-flow']])});
  assert.equal(r.granted,true);assert(calls.some(c=>c.sql==='COMMIT'));
+ assert(calls.some(c=>c.sql.includes('pg_advisory_xact_lock')));
  assert(calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
 });
 test('unverified purchase denied',async()=>{
