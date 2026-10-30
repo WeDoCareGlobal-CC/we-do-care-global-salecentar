@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "salecentar-preview": {
+      "root": "apps/salecentar",
+      "framework": "vite",
+      "buildCommand": "VITE_SALECENTAR_PREVIEW_ONLY=1 npm run build:v2 && cp dist-v2/v2.html dist-v2/index.html",
+      "outputDirectory": "dist-v2",
+      "rewrites": [
+        {
+          "source": "/(.*)",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "salecentar-preview"
+      }
+    }
+  ]
+}
