@@ -18,29 +18,35 @@ function mockDb({entry=row,previous=false,failInsert=false}={}){
  return {pool:{connect:async()=>client},calls};
 }
 test('verified linked one-time purchase grants transactionally',async()=>{
- const {pool,calls}=mockDb();const r=await grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow'});
+ const {pool,calls}=mockDb();const r=await grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow'])});
  assert.equal(r.granted,true);assert(calls.some(c=>c.sql==='COMMIT'));
  assert(calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
 });
 test('unverified purchase denied',async()=>{
  const {pool,calls}=mockDb({entry:{...row,verified:false}});
- await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow'}));
+ await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow'])}));
  assert(calls.some(c=>c.sql==='ROLLBACK'));
  assert(!calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
 });
 test('unlinked customer denied',async()=>{
  const {pool,calls}=mockDb({entry:{...row,user_id:null}});
- await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow'}));
+ await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow'])}));
  assert(!calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
 });
 test('duplicate purchase denied',async()=>{
  const {pool,calls}=mockDb({previous:true});
- await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow'}));
+ await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow'])}));
  assert(!calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
 });
 test('write collision rolls back',async()=>{
  const {pool,calls}=mockDb({failInsert:true});
- await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow'}));
+ await assert.rejects(grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId:'muse-flow',enforcedModules:new Set(['muse-flow'])}));
  assert(calls.some(c=>c.sql==='ROLLBACK'));
  assert(!calls.some(c=>c.sql.includes('INSERT INTO sc_module_entitlements')));
+});
+
+test('unverified module enforcement denies before any DB calls',async()=>{
+ let calls=0;
+ await assert.rejects(grantVerifiedOneTimeOrder({pool:{connect:async()=>{calls++;}},orderId,variantId,moduleId:'muse-flow'}),/enforcement not verified/);
+ assert.equal(calls,0);
 });
