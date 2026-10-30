@@ -26,6 +26,17 @@ export async function revokeIneligibleOrder({pool,orderId}) {
     if(review.rowCount!==1 || review.rows[0].verified!==false ||
         !['cancelled','refunded'].includes(review.rows[0].reason))
       throw Error('Authoritative ineligible review required');
+    // Discover affected modules BEFORE changing grant rows. Take all advisory
+    // locks in stable order so a concurrent purchase/refund cannot race the
+    // entitlement update or deadlock on differently ordered modules.
+    const candidates=await client.query(`
+      SELECT DISTINCT user_id,module_id FROM sc_shopify_grants
+      WHERE shop=$1 AND order_id=$2 AND revoked_at IS NULL
+      ORDER BY user_id,module_id
+    `,[SHOP_DOMAIN,orderId]);
+    for(const {user_id,module_id} of candidates.rows) {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[user_id+':'+module_id]);
+    }
     const grants=await client.query(`
       UPDATE sc_shopify_grants
       SET revoked_at=now()
@@ -35,8 +46,6 @@ export async function revokeIneligibleOrder({pool,orderId}) {
     const affected=new Set(grants.rows.map(x=>`${x.user_id}|${x.module_id}`));
     for(const key of affected) {
       const [userId,moduleId]=key.split('|');
-      // Serialize with grants for the same user/module to avoid lost access updates.
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[userId+':'+moduleId]);
       const other=await client.query(`
         SELECT 1 FROM sc_shopify_grants
         WHERE shop=$1 AND user_id=$2 AND module_id=$3 AND revoked_at IS NULL
