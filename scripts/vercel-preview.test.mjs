@@ -19,5 +19,5 @@ test('Vercel preview bypasses API session call and disables login form', async (
   const app = await read('apps/salecentar/src/AppV2.tsx');
   assert.match(app, /if \(previewOnly\) \{ setLoading\(false\); return; \}/);
   assert.match(app, /if \(previewOnly\) return <main/);
-  assert.match(app, /Prijava, kupovine, Shopify webhookovi i isporuka licenci nisu aktivni/);
+  assert.match(app, /Sign-in, purchases, Shopify webhooks, and license delivery are disabled/);
 });
