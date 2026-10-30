@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { centralApi, ApiError, type ModuleEntitlement, type SessionUser } from './lib/central-api';
 
+const previewOnly = import.meta.env.VITE_SALECENTAR_PREVIEW_ONLY === '1';
+
 export default function AppV2() {
   const [user,setUser]=useState<SessionUser|null>(null);
   const [loading,setLoading]=useState(true);
@@ -10,6 +12,7 @@ export default function AppV2() {
   const [message,setMessage]=useState('');
   const [busy,setBusy]=useState(false);
   useEffect(()=>{
+    if (previewOnly) { setLoading(false); return; }
     centralApi.session().then(r=>setUser(r.user)).catch(e=>{
       if (!(e instanceof ApiError && e.status===401)) setMessage('API trenutno nije dostupan.');
     }).finally(()=>setLoading(false));
@@ -30,6 +33,15 @@ export default function AppV2() {
     catch {setMessage('Odjava nije uspjela.');}
     finally {setBusy(false);}
   }
+  if (previewOnly) return <main className="min-h-screen grid place-items-center bg-[#061715] text-[#f7f1e7] px-6">
+    <section className="max-w-xl rounded-3xl border border-white/15 bg-[#0b2521] p-8">
+      <p className="text-xs uppercase tracking-[.24em] text-[#e59b78]">We Do Care Global · SaleCentar</p>
+      <h1 className="mt-3 text-3xl font-bold">SaleCentar 2.0 — staging pregled</h1>
+      <p className="mt-4 text-white/75">Ova odvojena Vercel stranica služi samo za provjeru frontend deploymenta.</p>
+      <p className="mt-3 text-white/65">Prijava, kupovine, Shopify webhookovi i isporuka licenci nisu aktivni. Ne unosite lozinke ni podatke za plaćanje.</p>
+      <p className="mt-5 rounded-xl border border-amber-300/30 px-4 py-3 text-amber-200">Nije povezana s originalnom Shopify prodavnicom.</p>
+    </section>
+  </main>;
   return <main className="min-h-screen bg-[#061715] text-[#f7f1e7]">
     <div className="mx-auto max-w-6xl px-5 py-10">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
