@@ -49,13 +49,13 @@ function PreviewDashboard() {
     {mobileOpen && <button type="button" aria-label="Close navigation" className="sc-overlay" onClick={close} />}
     <div className="sc-content" id="home">
       <header className="sc-topbar">
-        <div className="sc-top-left"><button type="button" className="sc-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Open menu"><Menu size={21}/></button><span>Radni prostor <ChevronRight size={14}/> <strong>Overview</strong></span></div>
-        <div className="sc-top-right"><span className="sc-live-badge"><span className="sc-live-dot"/> Overview bez naplate</span><span className="sc-avatar">SC</span></div>
+        <div className="sc-top-left"><button type="button" className="sc-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Open menu"><Menu size={21}/></button><span>Workspace <ChevronRight size={14}/> <strong>Overview</strong></span></div>
+        <div className="sc-top-right"><span className="sc-live-badge"><span className="sc-live-dot"/> Preview only · No payments</span><span className="sc-avatar">SC</span></div>
       </header>
       <div className="sc-main">
         <div className="sc-greeting"><span className="sc-eyebrow"><Sparkles size={14}/> WELCOME TO SALECENTAR</span><h1>One place for <em>smarter work.</em></h1><p>Discover digital tools designed to simplify everyday tasks. Everything you need, without the complexity.</p></div>
         <section className="sc-hero" aria-label="Introduction to SaleCentar">
-          <div className="sc-hero-copy"><span className="sc-hero-label"><span/> TVOJ DIGITALNI WORKSPACE</span><h2>Less busywork.<br/><span>More possibilities.</span></h2><p>From creative ideas to smart automation, explore tools designed for the way you work.</p><a href="#solutions" className="sc-primary-cta">Explore solutions <ArrowRight size={18}/></a><div className="sc-hero-foot"><ShieldCheck size={16}/> Safe, informational preview</div></div>
+          <div className="sc-hero-copy"><span className="sc-hero-label"><span/> YOUR DIGITAL WORKSPACE</span><h2>Less busywork.<br/><span>More possibilities.</span></h2><p>From creative ideas to smart automation, explore tools designed for the way you work.</p><a href="#solutions" className="sc-primary-cta">Explore solutions <ArrowRight size={18}/></a><div className="sc-hero-foot"><ShieldCheck size={16}/> Safe, informational preview</div></div>
           <div className="sc-hero-visual" aria-hidden="true"><div className="sc-orbit sc-orbit-a"/><div className="sc-orbit sc-orbit-b"/><div className="sc-visual-glow"/><div className="sc-visual-main"><Sparkles size={44} strokeWidth={1.55}/></div><div className="sc-float sc-float-a"><Bot size={23}/></div><div className="sc-float sc-float-b"><AudioLines size={22}/></div><div className="sc-float sc-float-c"><Workflow size={21}/></div><span className="sc-visual-caption">Everything in one place.</span></div>
         </section>
         <div className="sc-highlights">
@@ -64,13 +64,13 @@ function PreviewDashboard() {
           <div><span className="sc-highlight-icon icon-lavender"><LockKeyhole size={20}/></span><span><strong>No commitment</strong><small>Explore at your own pace</small></span></div>
         </div>
         <section id="solutions" className="sc-section">
-          <div className="sc-section-header"><div><span className="sc-section-kicker">DISCOVER WHAT'S POSSIBLE</span><h2>Solutions za tvoje ideje</h2><p>Find the tools that fit your needs.</p></div><span className="sc-section-count">Explore 5 solutions</span></div>
+          <div className="sc-section-header"><div><span className="sc-section-kicker">DISCOVER WHAT'S POSSIBLE</span><h2>Solutions for your ideas</h2><p>Find the tools that fit your needs.</p></div><span className="sc-section-count">Explore 5 solutions</span></div>
           <div className="sc-filters" role="group" aria-label="Filter solutions">{categories.map(c=><button type="button" key={c} aria-pressed={category===c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div>
           <div className="sc-products">{visible.map(p=>{const Icon=p.icon;return <article key={p.id} className="sc-product"><div className={`sc-product-art art-${p.color}`}><span className="sc-product-glyph"><Icon size={34} strokeWidth={1.7}/></span><span className="sc-art-orb"/></div><div className="sc-product-info"><span className="sc-product-tag">{p.tag}</span><h3>{p.name}</h3><strong>{p.tagline}</strong><p>{p.description}</p><span className="sc-product-bottom"><span><span className="sc-mini-dot"/> Coming soon</span><span className="sc-arrow-icon" aria-label="Informational preview"><ArrowUpRight size={19}/></span></span></div></article>})}</div>
           <p className="sc-catalog-note"><ShieldCheck size={16}/> These are informational solution cards, not products available for purchase. Prices and availability are not displayed.</p>
         </section>
         <section className="sc-next-section" id="next-steps"><div className="sc-section-header"><div><span className="sc-section-kicker">WHAT'S NEXT?</span><h2>Simple steps, clear progress</h2><p>See what's available now and what's coming next.</p></div></div><div className="sc-steps">{steps.map(s=><article className="sc-step" key={s.number}><span className="sc-step-no">{s.number}</span><div><h3>{s.title}</h3><p>{s.detail}</p><span className="sc-step-status">{s.status}</span></div><ChevronRight size={18}/></article>)}</div></section>
-        <section id="information" className="sc-disclaimer"><div className="sc-disclaimer-icon"><LockKeyhole size={22}/></div><div><strong>Overviewna verzija · bez aktivne trgovine</strong><p>Sign-in, purchases, Shopify webhooks, and license delivery are disabled. Do not enter passwords or payment information. This preview is not connected to the original Shopify store.</p></div></section>
+        <section id="information" className="sc-disclaimer"><div className="sc-disclaimer-icon"><LockKeyhole size={22}/></div><div><strong>Preview mode · No active storefront</strong><p>Sign-in, purchases, Shopify webhooks, and license delivery are disabled. Do not enter passwords or payment information. This preview is not connected to the original Shopify store.</p></div></section>
         <footer className="sc-footer"><span>© SaleCentar · We Do Care Global</span><span>Designed to feel effortless. <BadgeCheck size={15}/></span></footer>
       </div>
     </div>
