@@ -471,4 +471,7 @@ const server=http.createServer(async(req,res)=>{
   return respond(res,404,{error:'Not found'});
  }catch(e){console.error('SaleCentar integration error:',e.message);return respond(res,e.message==='Payload too large'?413:400,{error:'Request could not be processed'});}
 });
-server.listen(Number(process.env.SALECENTAR_PORT)||3101,process.env.SALECENTAR_HOST||'127.0.0.1',()=>console.log('We Do Care Global SaleCentar integration started'));
+const listenPort = Number(process.env.PORT || process.env.SALECENTAR_PORT || 3101);
+const listenHost = process.env.SALECENTAR_HOST || (process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
+if (!Number.isInteger(listenPort) || listenPort < 1 || listenPort > 65535) throw Error('Invalid SaleCentar listen port');
+server.listen(listenPort,listenHost,()=>console.log('We Do Care Global SaleCentar integration started'));
