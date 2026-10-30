@@ -72,7 +72,6 @@ export async function grantVerifiedOneTimeOrder({pool,orderId,variantId,moduleId
       ON CONFLICT(user_id,module_id) DO UPDATE
       SET enabled=true,provisioning_source='shopify',updated_at=now()
       WHERE sc_module_entitlements.provisioning_source='shopify'
-         OR sc_module_entitlements.enabled=false
       RETURNING user_id
     `,[row.user_id,moduleId]);
     if(entitlementWrite.rowCount!==1)
