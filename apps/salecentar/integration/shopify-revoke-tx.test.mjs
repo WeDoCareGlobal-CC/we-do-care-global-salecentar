@@ -6,7 +6,7 @@ function db({verified=false,reason='cancelled',other=false}={}){
  const log=[];
  return {log,pool:{connect:async()=>({query:async(q,args)=>{
   log.push({q,args});
-  if(q.includes('FROM sc_shopify_order_reviews'))return {rowCount:1,rows:[{verified,reason}]};
+  if(q.includes('FROM sc_shopify_order_reviews'))return {rowCount:1,rows:[{verified,reason,checked_at:new Date().toISOString()}]};
   if(q.includes('UPDATE sc_shopify_grants'))return {rowCount:1,rows:[{user_id:user,module_id:'muse-flow'}]};
   if(q.includes('SELECT 1 FROM sc_shopify_grants'))return {rowCount:other?1:0,rows:[]};
   return {rowCount:1,rows:[]};
@@ -34,4 +34,19 @@ test('invalid order rejected before DB connection',async()=>{
  let connections=0;
  await assert.rejects(revokeIneligibleOrder({pool:{connect:()=>{connections++;}},orderId:'bad'}),/Invalid order ID/);
  assert.equal(connections,0);
+});
+
+test('stale review cannot revoke access',async()=>{
+ const {pool,log}=db();
+ const original=pool.connect;
+ pool.connect=async()=>{
+  const client=await original();const query=client.query;
+  client.query=async(sql,args)=>{
+   const result=await query(sql,args);
+   if(sql.includes('FROM sc_shopify_order_reviews'))result.rows[0].checked_at='2023-01-01T00:00:00Z';
+   return result;
+  };return client;
+ };
+ await assert.rejects(revokeIneligibleOrder({pool,orderId}),/Fresh Shopify reconciliation required/);
+ assert(!log.some(x=>x.q.includes('UPDATE sc_module_entitlements')));
 });
